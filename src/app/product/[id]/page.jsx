@@ -33,21 +33,21 @@ const SizeButton = memo(({ size, isSelected, onClick }) => (
 ))
 
 const QuantitySelector = memo(({ quantity, onIncrement, onDecrement }) => (
-  <div className="flex items-center border-2 border-gray-300 rounded-full bg-white">
+  <div className="flex items-center border-2 border-gray-900 rounded-full bg-white shadow-sm">
     <button
       onClick={onDecrement}
-      className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 transition-colors rounded-l-full"
+      className="w-12 h-12 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-all duration-200 rounded-l-full border-r border-gray-200"
       aria-label="Decrease quantity"
     >
-      <Minus className="w-4 h-4" />
+      <Minus className="w-5 h-5 font-bold" />
     </button>
-    <span className="px-6 py-3 min-w-[80px] text-center font-semibold text-lg">{quantity}</span>
+    <span className="px-8 py-3 min-w-[100px] text-center font-bold text-xl text-gray-900 bg-white">{quantity}</span>
     <button
       onClick={onIncrement}
-      className="w-12 h-12 flex items-center justify-center hover:bg-gray-100 transition-colors rounded-r-full"
+      className="w-12 h-12 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-all duration-200 rounded-r-full border-l border-gray-200"
       aria-label="Increase quantity"
     >
-      <Plus className="w-4 h-4" />
+      <Plus className="w-5 h-5 font-bold" />
     </button>
   </div>
 ))
