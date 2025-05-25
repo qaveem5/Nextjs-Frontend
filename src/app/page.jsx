@@ -127,7 +127,7 @@ export default function Home() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
   useEffect(() => {
@@ -179,7 +179,11 @@ export default function Home() {
             if (Array.isArray(productData.gallery) && productData.gallery.length > 0) {
               const galleryUrl = getStrapiImageUrl(productData.gallery[0])
               if (galleryUrl) secondaryImage = galleryUrl
-            } else if (productData.gallery.data && Array.isArray(productData.gallery.data) && productData.gallery.data.length > 0) {
+            } else if (
+              productData.gallery.data &&
+              Array.isArray(productData.gallery.data) &&
+              productData.gallery.data.length > 0
+            ) {
               const firstGalleryImage = productData.gallery.data[0]
               if (firstGalleryImage.attributes?.url) {
                 const galleryUrl = firstGalleryImage.attributes.url
@@ -223,9 +227,14 @@ export default function Home() {
       <header className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\\"60\\" height=\\"60\\" viewBox=\\"0 0 60 60\\" xmlns=\\"http://www.w3.org/2000/svg\\">%3Cg fill=\\"none\\" fillRule=\\"evenodd\\">%3Cg fill=\\"%23ffffff\\" fillOpacity=\\"0.1\\">%3Ccircle cx=\\"30\\" cy=\\"30\\" r=\\"2\\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]"></div>\
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23ffffff' fillOpacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          ></div>
         </div>
-        
+
         <div className="relative container mx-auto px-4 py-16 text-center">
           <div className="max-w-4xl mx-auto">
             {/* Brand Logo/Title */}
@@ -241,13 +250,12 @@ export default function Home() {
             {/* Collection Title */}
             <div className="space-y-4">
               <h2 className="text-2xl md:text-3xl font-light tracking-wide text-gray-200">
-                Men's Premium Collection
+                {"Men's Premium Collection"}
               </h2>
-              <p className="text-lg md:text-xl text-gray-300 font-medium">
-                Shalwar Kameez • Kurtas • Traditional Wear
-              </p>
+              <p className="text-lg md:text-xl text-gray-300 font-medium">Shalwar Kameez • Kurtas • Traditional Wear</p>
               <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                Discover our exquisite range of traditional Pakistani menswear, crafted with premium fabrics and contemporary designs
+                Discover our exquisite range of traditional Pakistani menswear, crafted with premium fabrics and
+                contemporary designs
               </p>
             </div>
 
@@ -290,13 +298,18 @@ export default function Home() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
               <div className="text-red-600 mb-4">
                 <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-red-800 mb-2">Connection Error</h3>
               <p className="text-red-700 mb-4">Unable to load products. Please try again later.</p>
-              <button 
-                onClick={() => window.location.reload()} 
+              <button
+                onClick={() => window.location.reload()}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Retry
@@ -315,14 +328,17 @@ export default function Home() {
             {/* Products Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products && products.length > 0 ? (
-                products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))
+                products.map((product) => <ProductCard key={product.id} product={product} />)
               ) : (
                 <div className="col-span-full text-center py-16">
                   <div className="text-gray-400 mb-4">
                     <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                      />
                     </svg>
                   </div>
                   <p className="text-gray-500 text-lg">No products available at the moment</p>
@@ -334,5 +350,5 @@ export default function Home() {
         )}
       </main>
     </div>
-  )\
+  )
 }
