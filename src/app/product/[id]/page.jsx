@@ -4,8 +4,10 @@ import { useState, useEffect, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Heart, Minus, Plus, ChevronRight } from "lucide-react"
+import Header from "../../../components/Header"
+import Footer from "../../../components/Footer"
 
-// Memoized components for better performance
+// Using your exact working components
 const ProductImage = memo(({ src, alt, priority = false }) => (
   <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden rounded-lg">
     <Image
@@ -214,36 +216,46 @@ export default function ProductDetail({ params }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading product...</p>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading product...</p>
+          </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-          <p className="mb-6 text-gray-600 text-sm">
-            {error || "The product you're looking for doesn't exist or has been removed."}
-          </p>
-          <Link
-            href="/"
-            className="inline-block bg-gray-900 text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors"
-          >
-            Back to Products
-          </Link>
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
+            <p className="mb-6 text-gray-600 text-sm">
+              {error || "The product you're looking for doesn't exist or has been removed."}
+            </p>
+            <Link
+              href="/"
+              className="inline-block bg-gray-900 text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors"
+            >
+              Back to Products
+            </Link>
+          </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-white">
+      <Header />
+
       {/* Breadcrumb Navigation */}
       <nav className="border-b bg-gray-50 py-4" aria-label="Breadcrumb">
         <div className="container mx-auto px-4">
@@ -257,7 +269,7 @@ export default function ProductDetail({ params }) {
               <ChevronRight className="w-4 h-4" />
             </li>
             <li>
-              <Link href="/" className="hover:text-gray-900 transition-colors">
+              <Link href="/products?category=men" className="hover:text-gray-900 transition-colors">
                 Man
               </Link>
             </li>
@@ -265,7 +277,7 @@ export default function ProductDetail({ params }) {
               <ChevronRight className="w-4 h-4" />
             </li>
             <li>
-              <Link href="/" className="hover:text-gray-900 transition-colors">
+              <Link href="/products?category=men&type=stitched" className="hover:text-gray-900 transition-colors">
                 Men's Stitched
               </Link>
             </li>
@@ -411,6 +423,8 @@ export default function ProductDetail({ params }) {
           </section>
         )}
       </main>
+
+      <Footer />
     </div>
   )
 }

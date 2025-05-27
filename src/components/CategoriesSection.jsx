@@ -18,7 +18,6 @@ const CategoryCard = memo(({ category }) => (
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
 
-        {/* Category Name Overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
           <h3 className="text-white text-2xl md:text-3xl font-bold tracking-wide text-center">
             {category.name.toUpperCase()}
@@ -47,58 +46,52 @@ export default function CategoriesSection() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Fallback categories
-  const fallbackCategories = [
-    {
-      id: 1,
-      name: "Men",
-      slug: "men",
-      description: "Traditional & Contemporary",
-      image: "/placeholder.svg",
-    },
-    {
-      id: 2,
-      name: "Women",
-      slug: "women",
-      description: "Elegant & Stylish",
-      image: "/placeholder.svg",
-    },
-    {
-      id: 3,
-      name: "Accessories",
-      slug: "accessories",
-      description: "Complete Your Look",
-      image: "/placeholder.svg",
-    },
-  ]
-
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await fetch(`${API_URL}/api/categories?populate=*&filters[isActive][$eq]=true&sort=order:asc`)
+        const res = await fetch(`${API_URL}/api/categories?populate=*`)
 
         if (res.ok) {
-          const data = await res.json()
-          if (data.data && data.data.length > 0) {
-            const formattedCategories = data.data.map((category) => ({
-              id: category.id,
-              name: category.attributes.name,
-              slug: category.attributes.slug,
-              description: category.attributes.description || "Discover our collection",
-              image: category.attributes.image?.data?.attributes?.url
-                ? `${API_URL}${category.attributes.image.data.attributes.url}`
-                : "/placeholder.svg",
-            }))
-            setCategories(formattedCategories)
-          } else {
-            setCategories(fallbackCategories)
+          const responseData = await res.json()
+
+          if (responseData.data && responseData.data.length > 0) {
+            const formattedCategories = responseData.data.map((item) => {
+              const categoryData = item.attributes
+
+              const getStrapiImageUrl = (imageData) => {
+                if (!imageData) return null
+
+                if (imageData.data?.attributes?.url) {
+                  const url = imageData.data.attributes.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                if (imageData.attributes?.url) {
+                  const url = imageData.attributes.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                if (imageData.url) {
+                  const url = imageData.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                return null
+              }
+
+              const categoryImage = getStrapiImageUrl(categoryData.image)
+
+              return {
+                id: item.id,
+                name: categoryData.name || "Category",
+                slug: categoryData.slug || "",
+                description: categoryData.description || "Discover our collection",
+                image: categoryImage,
+              }
+            })
+
+            setCategories(formattedCategories.filter((c) => c.image))
           }
-        } else {
-          setCategories(fallbackCategories)
         }
       } catch (error) {
         console.error("Error fetching categories:", error)
-        setCategories(fallbackCategories)
       } finally {
         setLoading(false)
       }

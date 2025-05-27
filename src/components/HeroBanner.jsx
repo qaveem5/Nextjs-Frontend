@@ -17,18 +17,39 @@ export default function HeroBanner() {
         const res = await fetch(`${API_URL}/api/banners?populate=*`)
 
         if (res.ok) {
-          const data = await res.json()
-          console.log("Banner data:", data) // Debug log
+          const responseData = await res.json()
 
-          if (data.data && data.data.length > 0) {
-            const formattedBanners = data.data.map((banner) => {
-              const imageUrl = banner.attributes.image?.data?.attributes?.url
+          if (responseData.data && responseData.data.length > 0) {
+            const formattedBanners = responseData.data.map((item) => {
+              const bannerData = item.attributes
+
+              const getStrapiImageUrl = (imageData) => {
+                if (!imageData) return null
+
+                if (imageData.data?.attributes?.url) {
+                  const url = imageData.data.attributes.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                if (imageData.attributes?.url) {
+                  const url = imageData.attributes.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                if (imageData.url) {
+                  const url = imageData.url
+                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                }
+                return null
+              }
+
+              const bannerImage = getStrapiImageUrl(bannerData.image)
+
               return {
-                id: banner.id,
-                image: imageUrl ? `${API_URL}${imageUrl}` : null,
+                id: item.id,
+                image: bannerImage,
               }
             })
-            setBanners(formattedBanners.filter((b) => b.image)) // Only banners with images
+
+            setBanners(formattedBanners.filter((b) => b.image))
           }
         }
       } catch (error) {
@@ -65,7 +86,7 @@ export default function HeroBanner() {
     return (
       <div className="relative h-[70vh] bg-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-500">No banners found in Strapi</div>
+          <div className="text-gray-500">No banners found</div>
         </div>
       </div>
     )
@@ -75,7 +96,7 @@ export default function HeroBanner() {
 
   return (
     <section className="relative h-[70vh] overflow-hidden">
-      {/* Banner Image from Strapi */}
+      {/* Banner Image */}
       <div className="relative w-full h-full">
         <Image
           src={currentBanner.image || "/placeholder.svg"}

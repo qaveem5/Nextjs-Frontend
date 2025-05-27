@@ -8,18 +8,16 @@ import { Heart, ShoppingBag } from "lucide-react"
 import Header from "../../components/Header"
 import Footer from "../../components/Footer"
 
-// ProductCard component
+// Using your exact working ProductCard component
 const ProductCard = memo(({ product }) => {
   const handleWishlistClick = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
-    // Add wishlist logic here
   }, [])
 
   const handleAddToBag = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
-    // Add to bag logic here
   }, [])
 
   return (
@@ -123,30 +121,15 @@ export default function ProductsPage() {
   const [error, setError] = useState(null)
 
   const searchParams = useSearchParams()
-  const category = searchParams.get("category") // men, women, accessories
-  const type = searchParams.get("type") // stitched, unstitched
+  const category = searchParams.get("category")
+  const type = searchParams.get("type")
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
   useEffect(() => {
     async function fetchProducts() {
       try {
-        // Build API URL with filters
-        let apiUrl = `${API_URL}/api/products?populate=*`
-        const filters = []
-
-        if (category) {
-          filters.push(`filters[category][$eq]=${category}`)
-        }
-        if (type) {
-          filters.push(`filters[type][$eq]=${type}`)
-        }
-
-        if (filters.length > 0) {
-          apiUrl += `&${filters.join("&")}`
-        }
-
-        const res = await fetch(apiUrl, {
+        const res = await fetch(`${API_URL}/api/products?populate=*`, {
           method: "GET",
           next: { revalidate: 3600 },
         })
@@ -162,7 +145,7 @@ export default function ProductsPage() {
           return
         }
 
-        // Process the data
+        // Using your exact working data processing logic
         const formattedProducts = responseData.data.map((item) => {
           const productData = item.attributes || item
 
@@ -187,6 +170,7 @@ export default function ProductsPage() {
           const mainImage = getStrapiImageUrl(productData.image)
           let secondaryImage = mainImage
 
+          // Get secondary image from gallery
           if (productData.gallery) {
             if (Array.isArray(productData.gallery) && productData.gallery.length > 0) {
               const galleryUrl = getStrapiImageUrl(productData.gallery[0])
@@ -222,7 +206,16 @@ export default function ProductsPage() {
           }
         })
 
-        setProducts(formattedProducts)
+        // Apply client-side filtering
+        let filteredProducts = formattedProducts
+        if (category) {
+          filteredProducts = filteredProducts.filter((p) => p.category?.toLowerCase() === category.toLowerCase())
+        }
+        if (type) {
+          filteredProducts = filteredProducts.filter((p) => p.type?.toLowerCase() === type.toLowerCase())
+        }
+
+        setProducts(filteredProducts)
       } catch (error) {
         setError(error.message)
       } finally {
@@ -233,7 +226,6 @@ export default function ProductsPage() {
     fetchProducts()
   }, [API_URL, category, type])
 
-  // Get page title based on filters
   const getPageTitle = () => {
     if (category && type) {
       return `${category.charAt(0).toUpperCase() + category.slice(1)} ${
@@ -246,19 +238,6 @@ export default function ProductsPage() {
     return "All Products"
   }
 
-  const getPageDescription = () => {
-    if (category === "men") {
-      return "Discover our exquisite range of traditional Pakistani menswear, crafted with premium fabrics and contemporary designs"
-    }
-    if (category === "women") {
-      return "Explore our elegant women's collection featuring traditional and modern designs"
-    }
-    if (category === "accessories") {
-      return "Complete your look with our premium accessories collection"
-    }
-    return "Discover our complete fashion collection"
-  }
-
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -267,7 +246,9 @@ export default function ProductsPage() {
       <div className="bg-gray-50 py-12">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">{getPageTitle()}</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">{getPageDescription()}</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Discover our exquisite collection of premium Pakistani fashion
+          </p>
 
           {/* Filter Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mt-8">
@@ -282,11 +263,10 @@ export default function ProductsPage() {
               All Products
             </Link>
 
-            {/* Category Filters */}
             <Link
               href="/products?category=men"
               className={`px-6 py-2 rounded-full transition-colors ${
-                category === "men" && !type
+                category === "men"
                   ? "bg-black text-white"
                   : "bg-white text-black border border-gray-300 hover:border-black"
               }`}
@@ -314,7 +294,6 @@ export default function ProductsPage() {
               Accessories
             </Link>
 
-            {/* Type Filters (only show for men's category) */}
             {category === "men" && (
               <>
                 <Link
@@ -400,7 +379,7 @@ export default function ProductsPage() {
                     </svg>
                   </div>
                   <p className="text-gray-500 text-lg">No products available at the moment</p>
-                  <p className="text-gray-400 text-sm mt-2">Please check back later or try a different category</p>
+                  <p className="text-gray-400 text-sm mt-2">Please check back later</p>
                 </div>
               )}
             </div>
