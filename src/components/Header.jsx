@@ -47,25 +47,41 @@ export default function Header() {
             {/* Right Icons */}
             <div className="flex items-center space-x-4">
               {/* Mobile Menu Button */}
-              <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <button 
+                className="md:hidden" 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label="Toggle menu"
+              >
                 {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
 
               {/* Desktop Icons */}
               <div className="hidden md:flex items-center space-x-4">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Search"
+                >
                   <Search className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
+                  aria-label="Wishlist"
+                >
                   <Heart className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                     0
                   </span>
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Account"
+                >
                   <User className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
+                  aria-label="Cart"
+                >
                   <ShoppingBag className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                     0
@@ -78,6 +94,11 @@ export default function Header() {
           {/* Navigation Menu */}
           <nav className={`${isMenuOpen ? "block" : "hidden"} md:block border-t md:border-t-0 py-4 md:py-0`}>
             <ul className="flex flex-col md:flex-row md:items-center md:justify-center space-y-4 md:space-y-0 md:space-x-8 text-sm font-medium tracking-wide">
+              <li>
+                <Link href="/products" className="hover:text-gray-600 transition-colors">
+                  ALL PRODUCTS
+                </Link>
+              </li>
               <li>
                 <Link href="/new-in" className="hover:text-gray-600 transition-colors">
                   NEW IN

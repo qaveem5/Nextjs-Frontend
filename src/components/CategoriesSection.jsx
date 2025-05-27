@@ -49,49 +49,87 @@ export default function CategoriesSection() {
   useEffect(() => {
     async function fetchCategories() {
       try {
+        console.log("🚀 Fetching categories from:", `${API_URL}/api/categories?populate=*`)
+
         const res = await fetch(`${API_URL}/api/categories?populate=*`)
 
-        if (res.ok) {
-          const responseData = await res.json()
+        console.log("📡 Category API Response status:", res.status)
 
-          if (responseData.data && responseData.data.length > 0) {
-            const formattedCategories = responseData.data.map((item) => {
+        if (!res.ok) {
+          console.error("❌ Category API failed with status:", res.status)
+          throw new Error(`HTTP ${res.status}`)
+        }
+
+        const responseData = await res.json()
+        console.log("✅ Category API Response:", responseData)
+
+        if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+          const formattedCategories = responseData.data
+            .filter((item) => {
+              // Check if category is active
+              const isActive = item.attributes?.isActive !== false
+              console.log(`Category ${item.id} isActive:`, isActive)
+              return isActive
+            })
+            .map((item) => {
+              console.log("🔄 Processing category:", item)
               const categoryData = item.attributes
 
               const getStrapiImageUrl = (imageData) => {
-                if (!imageData) return null
+                console.log("🖼️ Processing category image data:", imageData)
 
+                if (!imageData) {
+                  console.log("⚠️ No image data found")
+                  return null
+                }
+
+                // Handle different Strapi image structures
                 if (imageData.data?.attributes?.url) {
                   const url = imageData.data.attributes.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Category image URL (data.attributes):", fullUrl)
+                  return fullUrl
                 }
+
                 if (imageData.attributes?.url) {
                   const url = imageData.attributes.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Category image URL (attributes):", fullUrl)
+                  return fullUrl
                 }
+
                 if (imageData.url) {
                   const url = imageData.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Category image URL (direct):", fullUrl)
+                  return fullUrl
                 }
+
+                console.log("❌ Could not extract category image URL")
                 return null
               }
 
-              const categoryImage = getStrapiImageUrl(categoryData.image)
+              const categoryImage = getStrapiImageUrl(categoryData?.image)
 
               return {
                 id: item.id,
-                name: categoryData.name || "Category",
-                slug: categoryData.slug || "",
-                description: categoryData.description || "Discover our collection",
+                name: categoryData?.name || "Category",
+                slug: categoryData?.slug || "",
+                description: categoryData?.description || "Discover our collection",
                 image: categoryImage,
               }
             })
+            .filter((category) => category.image) // Only keep categories with valid images
 
-            setCategories(formattedCategories.filter((c) => c.image))
-          }
+          console.log("🎯 Final formatted categories:", formattedCategories)
+          setCategories(formattedCategories)
+        } else {
+          console.log("⚠️ No category data found in response")
+          setCategories([])
         }
       } catch (error) {
-        console.error("Error fetching categories:", error)
+        console.error("💥 Error fetching categories:", error)
+        setCategories([])
       } finally {
         setLoading(false)
       }

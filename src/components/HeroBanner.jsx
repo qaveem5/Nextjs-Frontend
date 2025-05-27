@@ -14,46 +14,84 @@ export default function HeroBanner() {
   useEffect(() => {
     async function fetchBanners() {
       try {
+        console.log("🚀 Fetching banners from:", `${API_URL}/api/banners?populate=*`)
+
         const res = await fetch(`${API_URL}/api/banners?populate=*`)
 
-        if (res.ok) {
-          const responseData = await res.json()
+        console.log("📡 Banner API Response status:", res.status)
 
-          if (responseData.data && responseData.data.length > 0) {
-            const formattedBanners = responseData.data.map((item) => {
+        if (!res.ok) {
+          console.error("❌ Banner API failed with status:", res.status)
+          throw new Error(`HTTP ${res.status}`)
+        }
+
+        const responseData = await res.json()
+        console.log("✅ Banner API Response:", responseData)
+
+        if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+          const formattedBanners = responseData.data
+            .filter((item) => {
+              // Check if banner is active
+              const isActive = item.attributes?.isActive !== false
+              console.log(`Banner ${item.id} isActive:`, isActive)
+              return isActive
+            })
+            .map((item) => {
+              console.log("🔄 Processing banner:", item)
               const bannerData = item.attributes
 
               const getStrapiImageUrl = (imageData) => {
-                if (!imageData) return null
+                console.log("🖼️ Processing banner image data:", imageData)
 
+                if (!imageData) {
+                  console.log("⚠️ No image data found")
+                  return null
+                }
+
+                // Handle different Strapi image structures
                 if (imageData.data?.attributes?.url) {
                   const url = imageData.data.attributes.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Banner image URL (data.attributes):", fullUrl)
+                  return fullUrl
                 }
+
                 if (imageData.attributes?.url) {
                   const url = imageData.attributes.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Banner image URL (attributes):", fullUrl)
+                  return fullUrl
                 }
+
                 if (imageData.url) {
                   const url = imageData.url
-                  return url.startsWith("http") ? url : `${API_URL}${url}`
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log("✅ Banner image URL (direct):", fullUrl)
+                  return fullUrl
                 }
+
+                console.log("❌ Could not extract banner image URL")
                 return null
               }
 
-              const bannerImage = getStrapiImageUrl(bannerData.image)
+              const bannerImage = getStrapiImageUrl(bannerData?.image)
 
               return {
                 id: item.id,
                 image: bannerImage,
               }
             })
+            .filter((banner) => banner.image) // Only keep banners with valid images
 
-            setBanners(formattedBanners.filter((b) => b.image))
-          }
+          console.log("🎯 Final formatted banners:", formattedBanners)
+          setBanners(formattedBanners)
+        } else {
+          console.log("⚠️ No banner data found in response")
+          setBanners([])
         }
       } catch (error) {
-        console.error("Error fetching banners:", error)
+        console.error("💥 Error fetching banners:", error)
+        setBanners([])
       } finally {
         setLoading(false)
       }
