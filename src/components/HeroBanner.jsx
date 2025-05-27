@@ -11,38 +11,28 @@ export default function HeroBanner() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Fallback banner
-  const fallbackBanners = [
-    {
-      id: 1,
-      image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-QAerHnR1YfeKVcFyTAemtHKgqBjpL4.png",
-    },
-  ]
-
   useEffect(() => {
     async function fetchBanners() {
       try {
-        const res = await fetch(`${API_URL}/api/banners?populate=*&filters[isActive][$eq]=true&sort=order:asc`)
+        const res = await fetch(`${API_URL}/api/banners?populate=*`)
 
         if (res.ok) {
           const data = await res.json()
+          console.log("Banner data:", data) // Debug log
+
           if (data.data && data.data.length > 0) {
-            const formattedBanners = data.data.map((banner) => ({
-              id: banner.id,
-              image: banner.attributes.image?.data?.attributes?.url
-                ? `${API_URL}${banner.attributes.image.data.attributes.url}`
-                : fallbackBanners[0].image,
-            }))
-            setBanners(formattedBanners)
-          } else {
-            setBanners(fallbackBanners)
+            const formattedBanners = data.data.map((banner) => {
+              const imageUrl = banner.attributes.image?.data?.attributes?.url
+              return {
+                id: banner.id,
+                image: imageUrl ? `${API_URL}${imageUrl}` : null,
+              }
+            })
+            setBanners(formattedBanners.filter((b) => b.image)) // Only banners with images
           }
-        } else {
-          setBanners(fallbackBanners)
         }
       } catch (error) {
         console.error("Error fetching banners:", error)
-        setBanners(fallbackBanners)
       } finally {
         setLoading(false)
       }
@@ -65,28 +55,36 @@ export default function HeroBanner() {
     return (
       <div className="relative h-[70vh] bg-gray-100 animate-pulse">
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-400">Loading...</div>
+          <div className="text-gray-400">Loading banner...</div>
         </div>
       </div>
     )
   }
 
-  const currentBanner = banners[currentSlide] || fallbackBanners[0]
+  if (!banners.length) {
+    return (
+      <div className="relative h-[70vh] bg-gray-100">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-gray-500">No banners found in Strapi</div>
+        </div>
+      </div>
+    )
+  }
+
+  const currentBanner = banners[currentSlide]
 
   return (
     <section className="relative h-[70vh] overflow-hidden">
-      {/* Banner Image */}
+      {/* Banner Image from Strapi */}
       <div className="relative w-full h-full">
         <Image
           src={currentBanner.image || "/placeholder.svg"}
-          alt="Sapphire Men Collection"
+          alt="Sapphire Banner"
           fill
           className="object-cover"
           priority
           quality={90}
         />
-
-        {/* Overlay */}
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
 
@@ -94,13 +92,11 @@ export default function HeroBanner() {
       <div className="absolute inset-0 flex items-center">
         <div className="container mx-auto px-4">
           <div className="max-w-lg">
-            {/* Title */}
             <div className="text-white mb-8">
               <h1 className="text-6xl md:text-8xl font-bold tracking-wider mb-2">MAN</h1>
               <h2 className="text-2xl md:text-3xl font-light tracking-widest">EID II</h2>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-4">
               <Link
                 href="/products?category=men&type=unstitched"
