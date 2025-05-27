@@ -1,9 +1,77 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Heart, Minus, Plus, ChevronRight } from "lucide-react"
+
+// Memoized components for better performance
+const ProductImage = memo(({ src, alt, priority = false }) => (
+  <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden rounded-lg">
+    <Image
+      src={src || "/placeholder.svg"}
+      alt={alt}
+      fill
+      sizes="(max-width: 768px) 50vw, 25vw"
+      className="object-cover hover:scale-105 transition-transform duration-300"
+      priority={priority}
+      quality={85}
+    />
+  </div>
+))
+
+const SizeButton = memo(({ size, isSelected, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`min-w-[48px] h-12 px-4 border-2 text-sm font-medium transition-all duration-200 hover:border-gray-900 ${
+      isSelected ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 bg-white text-gray-900"
+    }`}
+    aria-pressed={isSelected}
+  >
+    {size}
+  </button>
+))
+
+const QuantitySelector = memo(({ quantity, onIncrement, onDecrement }) => (
+  <div className="flex items-center border-2 border-gray-900 rounded-full bg-white shadow-sm">
+    <button
+      onClick={onDecrement}
+      className="w-12 h-12 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-all duration-200 rounded-l-full border-r border-gray-200"
+      aria-label="Decrease quantity"
+    >
+      <Minus className="w-5 h-5 font-bold" />
+    </button>
+    <span className="px-8 py-3 min-w-[100px] text-center font-bold text-xl text-gray-900 bg-white">{quantity}</span>
+    <button
+      onClick={onIncrement}
+      className="w-12 h-12 flex items-center justify-center hover:bg-gray-900 hover:text-white transition-all duration-200 rounded-r-full border-l border-gray-200"
+      aria-label="Increase quantity"
+    >
+      <Plus className="w-5 h-5 font-bold" />
+    </button>
+  </div>
+))
+
+const RelatedProduct = memo(({ product }) => (
+  <Link href={`/product/${product.id}`} className="group block">
+    <div className="space-y-3">
+      <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 rounded-lg">
+        <Image
+          src={product.image || "/placeholder.svg"}
+          alt={product.name}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          quality={75}
+        />
+      </div>
+      <div className="text-center">
+        <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+        <div className="font-bold text-gray-900">{product.price}</div>
+      </div>
+    </div>
+  </Link>
+))
 
 export default function ProductDetail({ params }) {
   const [product, setProduct] = useState(null)
@@ -14,6 +82,7 @@ export default function ProductDetail({ params }) {
   const [quantity, setQuantity] = useState(1)
   const [selectedColor, setSelectedColor] = useState("")
   const [productImages, setProductImages] = useState([])
+
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
   useEffect(() => {
@@ -22,11 +91,8 @@ export default function ProductDetail({ params }) {
         const resolvedParams = await params
         const productId = resolvedParams.id
 
-        // Get all products to find the specific one
         const allProductsRes = await fetch(`${API_URL}/api/products?populate=*`)
         const allProductsData = await allProductsRes.json()
-
-        console.log("All products data:", JSON.stringify(allProductsData, null, 2))
 
         const productFromList = allProductsData.data?.find((p) => p.id === Number.parseInt(productId))
 
@@ -36,7 +102,6 @@ export default function ProductDetail({ params }) {
           const getStrapiImageUrl = (imageData) => {
             if (!imageData) return null
 
-            // Handle different Strapi image data structures
             if (imageData.data?.attributes?.url) {
               const url = imageData.data.attributes.url
               return url.startsWith("http") ? url : `${API_URL}${url}`
@@ -52,43 +117,26 @@ export default function ProductDetail({ params }) {
             return null
           }
 
-          // Get all product images (main + gallery)
           const allImages = []
 
           // Add main image first
           const mainImage = getStrapiImageUrl(productData.image)
           if (mainImage) {
             allImages.push(mainImage)
-            console.log("Added main image:", mainImage)
           }
 
-          // Add gallery images - COMPLETELY REWRITTEN LOGIC
-          console.log("Raw gallery data:", JSON.stringify(productData.gallery, null, 2))
-
-          // Check if gallery exists
+          // Add gallery images
           if (productData.gallery) {
-            console.log("Gallery field exists")
-
-            // Check if it's an array directly (some Strapi versions)
             if (Array.isArray(productData.gallery)) {
-              console.log(`Gallery is direct array with ${productData.gallery.length} items`)
-              productData.gallery.forEach((img, index) => {
+              productData.gallery.forEach((img) => {
                 const imageUrl = getStrapiImageUrl(img)
                 if (imageUrl) {
                   allImages.push(imageUrl)
-                  console.log(`Added direct gallery image ${index + 1}:`, imageUrl)
                 }
               })
-            }
-            // Check if it has data property with array
-            else if (productData.gallery.data && Array.isArray(productData.gallery.data)) {
-              console.log(`Gallery has data array with ${productData.gallery.data.length} items`)
-              productData.gallery.data.forEach((img, index) => {
-                console.log(`Processing gallery image ${index + 1}:`, JSON.stringify(img, null, 2))
-
-                // Try different structures
+            } else if (productData.gallery.data && Array.isArray(productData.gallery.data)) {
+              productData.gallery.data.forEach((img) => {
                 let imageUrl = null
-
                 if (img.attributes?.url) {
                   const url = img.attributes.url
                   imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
@@ -96,22 +144,13 @@ export default function ProductDetail({ params }) {
                   const url = img.url
                   imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
                 }
-
                 if (imageUrl) {
                   allImages.push(imageUrl)
-                  console.log(`Added gallery image ${index + 1}:`, imageUrl)
-                } else {
-                  console.log(`Failed to get URL for gallery image ${index + 1}:`, img)
                 }
               })
-            } else {
-              console.log("Gallery exists but has unexpected structure:", productData.gallery)
             }
-          } else {
-            console.log("No gallery field found")
           }
 
-          console.log("Final all product images:", allImages)
           setProductImages(allImages)
 
           const formattedProduct = {
@@ -136,12 +175,10 @@ export default function ProductDetail({ params }) {
 
           setProduct(formattedProduct)
 
-          // Set default selections
           if (formattedProduct.colors.length > 0) {
             setSelectedColor(formattedProduct.colors[0])
           }
 
-          // Set related products (exactly 3 like in the official site)
           const filtered = allProductsData.data
             .filter((item) => item.id !== Number.parseInt(productId))
             .slice(0, 3)
@@ -177,7 +214,7 @@ export default function ProductDetail({ params }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-500">Loading product...</p>
@@ -194,7 +231,10 @@ export default function ProductDetail({ params }) {
           <p className="mb-6 text-gray-600 text-sm">
             {error || "The product you're looking for doesn't exist or has been removed."}
           </p>
-          <Link href="/" className="bg-gray-900 text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors">
+          <Link
+            href="/"
+            className="inline-block bg-gray-900 text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors"
+          >
             Back to Products
           </Link>
         </div>
@@ -205,97 +245,87 @@ export default function ProductDetail({ params }) {
   return (
     <div className="min-h-screen bg-white">
       {/* Breadcrumb Navigation */}
-      <nav className="border-b bg-gray-50 py-3">
+      <nav className="border-b bg-gray-50 py-4" aria-label="Breadcrumb">
         <div className="container mx-auto px-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Link href="/" className="hover:text-gray-900">
-              Home
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <Link href="/" className="hover:text-gray-900">
-              Man
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <Link href="/" className="hover:text-gray-900">
-              Men's Stitched
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-gray-900">{product.name}</span>
-          </div>
+          <ol className="flex items-center space-x-2 text-sm text-gray-600">
+            <li>
+              <Link href="/" className="hover:text-gray-900 transition-colors">
+                Home
+              </Link>
+            </li>
+            <li>
+              <ChevronRight className="w-4 h-4" />
+            </li>
+            <li>
+              <Link href="/" className="hover:text-gray-900 transition-colors">
+                Man
+              </Link>
+            </li>
+            <li>
+              <ChevronRight className="w-4 h-4" />
+            </li>
+            <li>
+              <Link href="/" className="hover:text-gray-900 transition-colors">
+                Men's Stitched
+              </Link>
+            </li>
+            <li>
+              <ChevronRight className="w-4 h-4" />
+            </li>
+            <li className="text-gray-900 font-medium">{product.name}</li>
+          </ol>
         </div>
       </nav>
 
       {/* Product Detail */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Product Images - Exactly like Sapphire */}
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Product Images */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {/* Show first 2 images side by side like in the official site */}
               {productImages.slice(0, 2).map((image, index) => (
-                <div key={index} className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
-                  <Image
-                    src={image || "/placeholder.svg"}
-                    alt={`${product.name} ${index + 1}`}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                    className="object-cover"
-                  />
-                </div>
+                <ProductImage
+                  key={index}
+                  src={image}
+                  alt={`${product.name} view ${index + 1}`}
+                  priority={index === 0}
+                />
               ))}
             </div>
 
-            {/* Additional images if more than 2 */}
             {productImages.length > 2 && (
               <div className="grid grid-cols-2 gap-4">
                 {productImages.slice(2, 4).map((image, index) => (
-                  <div key={index + 2} className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
-                    <Image
-                      src={image || "/placeholder.svg"}
-                      alt={`${product.name} ${index + 3}`}
-                      fill
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                      className="object-cover"
-                    />
-                  </div>
+                  <ProductImage key={index + 2} src={image} alt={`${product.name} view ${index + 3}`} />
                 ))}
               </div>
             )}
-
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-              Total images: {productImages.length}
-              {productImages.length > 0 && (
-                <div className="mt-1">
-                  Images: {productImages.map((img, i) => `${i + 1}. ${img.split("/").pop()}`).join(", ")}
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Product Info - Exactly like Sapphire */}
-          <div className="space-y-6">
+          {/* Product Info */}
+          <div className="space-y-8">
             {/* Title and Wishlist */}
             <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wide mb-2">{product.name}</h1>
-                <div className="text-2xl font-bold text-gray-900">{product.price}</div>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-wide mb-3">{product.name}</h1>
+                <div className="text-3xl font-bold text-gray-900 mb-2">{product.price}</div>
+                <div className="text-sm text-gray-600">
+                  <strong>SKU:</strong> {product.sku}
+                </div>
               </div>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button
+                className="p-3 hover:bg-gray-100 rounded-full transition-colors ml-4"
+                aria-label="Add to wishlist"
+              >
                 <Heart className="w-6 h-6 text-gray-600" />
               </button>
             </div>
 
-            {/* SKU */}
-            <div className="text-sm text-gray-600">
-              <strong>SKU:</strong> {product.sku}
-            </div>
-
             {/* Type Selection */}
             <div>
-              <h3 className="font-medium text-gray-900 mb-3 uppercase tracking-wide">TYPE: SLIM FIT</h3>
-              <div className="flex gap-2">
-                <button className="border border-gray-900 bg-white text-gray-900 px-4 py-2 text-sm font-medium hover:bg-gray-900 hover:text-white transition-colors">
+              <h3 className="font-semibold text-gray-900 mb-4 uppercase tracking-wide text-sm">TYPE: SLIM FIT</h3>
+              <div className="flex gap-3">
+                <button className="border-2 border-gray-900 bg-white text-gray-900 px-6 py-3 text-sm font-semibold hover:bg-gray-900 hover:text-white transition-colors">
                   Slim Fit
                 </button>
               </div>
@@ -303,63 +333,47 @@ export default function ProductDetail({ params }) {
 
             {/* Size Selection */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-gray-900 uppercase tracking-wide">
-                  SIZE: {selectedSize ? selectedSize : "SELECT YOUR SIZE"}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 uppercase tracking-wide text-sm">
+                  SIZE: {selectedSize || "SELECT YOUR SIZE"}
                 </h3>
-                <button className="text-sm text-gray-600 hover:text-gray-900 underline">📏 Size Chart</button>
+                <button className="text-sm text-gray-600 hover:text-gray-900 underline flex items-center gap-1">
+                  📏 Size Chart
+                </button>
               </div>
-              <div className="flex gap-2">
-                {product.sizes.map((size, index) => (
-                  <button
-                    key={index}
+              <div className="flex gap-3 flex-wrap">
+                {product.sizes.map((size) => (
+                  <SizeButton
+                    key={size}
+                    size={size}
+                    isSelected={selectedSize === size}
                     onClick={() => setSelectedSize(size)}
-                    className={`border px-4 py-2 text-sm font-medium transition-colors ${
-                      selectedSize === size
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-300 hover:border-gray-900"
-                    }`}
-                  >
-                    {size}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
 
             {/* Quantity and Add to Cart */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-gray-300 rounded-full">
-                <button
-                  onClick={decrementQuantity}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 transition-colors rounded-full"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="px-4 py-2 min-w-[60px] text-center font-medium">{quantity}</span>
-                <button
-                  onClick={incrementQuantity}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 transition-colors rounded-full"
-                >
-                  <Plus className="w-4 h-4" />
+            <div className="space-y-4">
+              <div className="flex items-center gap-6">
+                <QuantitySelector quantity={quantity} onIncrement={incrementQuantity} onDecrement={decrementQuantity} />
+                <button className="flex-1 bg-gray-900 text-white py-4 px-8 font-semibold hover:bg-gray-800 transition-colors uppercase tracking-wide rounded-full text-sm">
+                  ADD TO BAG
                 </button>
               </div>
-
-              <button className="flex-1 bg-gray-900 text-white py-3 px-6 font-medium hover:bg-gray-800 transition-colors uppercase tracking-wide rounded-full">
-                ADD TO BAG
-              </button>
             </div>
 
             {/* Product Details Accordion */}
-            <div className="border-t pt-6">
+            <div className="border-t pt-8">
               <details className="group">
-                <summary className="flex items-center justify-between cursor-pointer font-medium text-gray-900 py-3 uppercase tracking-wide">
+                <summary className="flex items-center justify-between cursor-pointer font-semibold text-gray-900 py-4 uppercase tracking-wide text-sm">
                   PRODUCT DETAILS
-                  <span className="text-2xl group-open:rotate-45 transition-transform">—</span>
+                  <span className="text-2xl group-open:rotate-45 transition-transform duration-200">+</span>
                 </summary>
-                <div className="mt-4 text-gray-700 space-y-4 text-sm">
+                <div className="mt-4 text-gray-700 space-y-4 text-sm leading-relaxed">
                   <p>{product.description}</p>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p>
                       <strong>Details:</strong> Band Around the Placket Front Panel, Dyed Embroidered Back Panel, Band
                       Neckline, Open Sleeves, Standard Length
@@ -372,10 +386,10 @@ export default function ProductDetail({ params }) {
                     </p>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <p className="font-medium">Size & Fit</p>
+                  <div className="border-t pt-4 mt-6">
+                    <p className="font-semibold mb-2">Size & Fit</p>
                     <p>Model Height: 6 Feet 1 Inches</p>
-                    <p>Model Wears Size: medium-slim fit</p>
+                    <p>Model Wears Size: Medium-Slim Fit</p>
                   </div>
                 </div>
               </details>
@@ -383,36 +397,20 @@ export default function ProductDetail({ params }) {
           </div>
         </div>
 
-        {/* You May Also Like - Centered like official site */}
+        {/* You May Also Like */}
         {relatedProducts.length > 0 && (
-          <div className="mt-20">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">You May Also Like</h2>
+          <section className="mt-24">
+            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">You May Also Like</h2>
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl">
                 {relatedProducts.map((relatedProduct) => (
-                  <Link href={`/product/${relatedProduct.id}`} key={relatedProduct.id} className="group">
-                    <div className="space-y-3">
-                      <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
-                        <Image
-                          src={relatedProduct.image || "/placeholder.svg"}
-                          alt={relatedProduct.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <h3 className="font-medium text-gray-900 mb-1">{relatedProduct.name}</h3>
-                        <div className="font-bold text-gray-900">{relatedProduct.price}</div>
-                      </div>
-                    </div>
-                  </Link>
+                  <RelatedProduct key={relatedProduct.id} product={relatedProduct} />
                 ))}
               </div>
             </div>
-          </div>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   )
 }
