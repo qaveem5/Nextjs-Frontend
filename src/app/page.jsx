@@ -12,13 +12,6 @@ export default function HomePage() {
       <main>
         <HeroBanner />
         <CategoriesSection />
-
-        {/* You can add more sections here like:
-        - Featured Products
-        - New Arrivals
-        - Special Offers
-        - Newsletter Signup
-        */}
       </main>
       <Footer />
     </div>
