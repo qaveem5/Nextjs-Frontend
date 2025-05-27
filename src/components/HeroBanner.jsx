@@ -11,11 +11,11 @@ export default function HeroBanner() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Fallback banner data
+  // Fallback banner
   const fallbackBanners = [
     {
       id: 1,
-      image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-WiXZvH1DMetYVAtr1YwqrpU1mAqgHx.png",
+      image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-QAerHnR1YfeKVcFyTAemtHKgqBjpL4.png",
     },
   ]
 
@@ -100,7 +100,7 @@ export default function HeroBanner() {
               <h2 className="text-2xl md:text-3xl font-light tracking-widest">EID II</h2>
             </div>
 
-            {/* Action Buttons - Both go to Men's listing page */}
+            {/* Action Buttons */}
             <div className="flex gap-4">
               <Link
                 href="/products?category=men&type=unstitched"

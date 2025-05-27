@@ -41,20 +41,6 @@ const CategoryCard = memo(({ category }) => (
 
 CategoryCard.displayName = "CategoryCard"
 
-const CategorySkeleton = memo(() => (
-  <div className="animate-pulse">
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="aspect-[4/3] bg-gray-200"></div>
-      <div className="p-6">
-        <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
-      </div>
-    </div>
-  </div>
-))
-
-CategorySkeleton.displayName = "CategorySkeleton"
-
 export default function CategoriesSection() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -133,7 +119,17 @@ export default function CategoriesSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {loading
-            ? Array.from({ length: 3 }).map((_, index) => <CategorySkeleton key={index} />)
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="animate-pulse">
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="aspect-[4/3] bg-gray-200"></div>
+                    <div className="p-6">
+                      <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
             : categories.map((category) => <CategoryCard key={category.id} category={category} />)}
         </div>
       </div>

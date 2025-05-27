@@ -8,7 +8,7 @@ import { Heart, ShoppingBag } from "lucide-react"
 import Header from "../../components/Header"
 import Footer from "../../components/Footer"
 
-// ProductCard component (keeping your existing optimized version)
+// ProductCard component
 const ProductCard = memo(({ product }) => {
   const handleWishlistClick = useCallback((e) => {
     e.preventDefault()
@@ -162,7 +162,7 @@ export default function ProductsPage() {
           return
         }
 
-        // Your existing data processing logic
+        // Process the data
         const formattedProducts = responseData.data.map((item) => {
           const productData = item.attributes || item
 
@@ -400,7 +400,7 @@ export default function ProductsPage() {
                     </svg>
                   </div>
                   <p className="text-gray-500 text-lg">No products available at the moment</p>
-                  <p className="text-gray-400 text-sm mt-2">Please check back later</p>
+                  <p className="text-gray-400 text-sm mt-2">Please check back later or try a different category</p>
                 </div>
               )}
             </div>

@@ -84,12 +84,12 @@ export default function Header() {
                 </Link>
               </li>
               <li>
-                <Link href="/woman" className="hover:text-gray-600 transition-colors">
+                <Link href="/products?category=women" className="hover:text-gray-600 transition-colors">
                   WOMAN
                 </Link>
               </li>
               <li>
-                <Link href="/man" className="hover:text-gray-600 transition-colors">
+                <Link href="/products?category=men" className="hover:text-gray-600 transition-colors">
                   MAN
                 </Link>
               </li>
@@ -104,7 +104,7 @@ export default function Header() {
                 </Link>
               </li>
               <li>
-                <Link href="/accessories" className="hover:text-gray-600 transition-colors">
+                <Link href="/products?category=accessories" className="hover:text-gray-600 transition-colors">
                   ACCESSORIES
                 </Link>
               </li>
