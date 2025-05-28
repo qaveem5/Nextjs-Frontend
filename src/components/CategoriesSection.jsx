@@ -47,29 +47,52 @@ export default function CategoriesSection() {
         const responseData = await res.json()
         console.log("✅ Category API Response:", responseData)
 
+        // Debug the full structure
+        if (responseData.data && responseData.data[0]) {
+          console.log("🔍 Full category item:", responseData.data[0])
+          console.log("🔍 Category attributes:", responseData.data[0].attributes)
+          console.log("🔍 All category attribute keys:", Object.keys(responseData.data[0].attributes || {}))
+        }
+
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-          const formattedCategories = responseData.data
-            .filter((item) => {
-              const isActive = item.attributes?.isActive !== false
-              return isActive
-            })
-            .map((item) => {
-              const categoryData = item.attributes
+          const formattedCategories = responseData.data.map((item) => {
+            const categoryData = item.attributes
 
-              // Debug the image data structure
-              console.log("🔍 Category image data:", categoryData?.image)
+            // Debug the image data structure with more detail
+            console.log("🔍 Category image data:", categoryData?.image)
+            console.log("🔍 All category data keys:", Object.keys(categoryData || {}))
 
-              // Update the category processing to use this exact logic
-              const categoryImage = getStrapiImageUrl(categoryData?.image)
+            // Try different possible image field names
+            let categoryImage = null
 
-              return {
-                id: item.id,
-                name: categoryData?.name || "Category",
-                slug: categoryData?.slug || "",
-                description: categoryData?.description || "Discover our collection",
-                image: categoryImage,
-              }
-            })
+            // Try the standard image field
+            if (categoryData?.image) {
+              categoryImage = getStrapiImageUrl(categoryData.image)
+            }
+
+            // Try alternative field names that might be used
+            if (!categoryImage && categoryData?.Image) {
+              categoryImage = getStrapiImageUrl(categoryData.Image)
+            }
+
+            if (!categoryImage && categoryData?.category_image) {
+              categoryImage = getStrapiImageUrl(categoryData.category_image)
+            }
+
+            if (!categoryImage && categoryData?.categoryImage) {
+              categoryImage = getStrapiImageUrl(categoryData.categoryImage)
+            }
+
+            console.log("🎯 Extracted category image URL:", categoryImage)
+
+            return {
+              id: item.id,
+              name: categoryData?.name || "Category",
+              slug: categoryData?.slug || "",
+              description: categoryData?.description || "Discover our collection",
+              image: categoryImage,
+            }
+          })
 
           console.log("🎯 Final formatted categories:", formattedCategories)
           setCategories(formattedCategories)

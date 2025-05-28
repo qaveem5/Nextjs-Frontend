@@ -49,32 +49,55 @@ export default function HeroBanner() {
         const responseData = await res.json()
         console.log("✅ Banner API Response:", responseData)
 
+        // Debug the full structure
+        if (responseData.data && responseData.data[0]) {
+          console.log("🔍 Full banner item:", responseData.data[0])
+          console.log("🔍 Banner attributes:", responseData.data[0].attributes)
+          console.log("🔍 All banner attribute keys:", Object.keys(responseData.data[0].attributes || {}))
+        }
+
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-          const formattedBanners = responseData.data
-            .filter((item) => {
-              const isActive = item.attributes?.isActive !== false
-              return isActive
-            })
-            .map((item) => {
-              const bannerData = item.attributes
+          const formattedBanners = responseData.data.map((item) => {
+            const bannerData = item.attributes
 
-              // Debug the image data structure
-              console.log("🔍 Banner image data:", bannerData?.image)
+            // Debug the image data structure with more detail
+            console.log("🔍 Banner image data:", bannerData?.image)
+            console.log("🔍 All banner data keys:", Object.keys(bannerData || {}))
 
-              // Update the banner processing to use this exact logic
-              const bannerImage = getStrapiImageUrl(bannerData?.image)
+            // Try different possible image field names
+            let bannerImage = null
 
-              return {
-                id: item.id,
-                image: bannerImage,
-                title: bannerData?.title || "MAN",
-                subtitle: bannerData?.subtitle || "EID II",
-                primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
-                secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
-                primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
-                secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
-              }
-            })
+            // Try the standard image field
+            if (bannerData?.image) {
+              bannerImage = getStrapiImageUrl(bannerData.image)
+            }
+
+            // Try alternative field names that might be used
+            if (!bannerImage && bannerData?.Image) {
+              bannerImage = getStrapiImageUrl(bannerData.Image)
+            }
+
+            if (!bannerImage && bannerData?.banner_image) {
+              bannerImage = getStrapiImageUrl(bannerData.banner_image)
+            }
+
+            if (!bannerImage && bannerData?.bannerImage) {
+              bannerImage = getStrapiImageUrl(bannerData.bannerImage)
+            }
+
+            console.log("🎯 Extracted banner image URL:", bannerImage)
+
+            return {
+              id: item.id,
+              image: bannerImage,
+              title: bannerData?.title || "MAN",
+              subtitle: bannerData?.subtitle || "EID II",
+              primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
+              secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
+              primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
+              secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
+            }
+          })
 
           console.log("🎯 Final formatted banners:", formattedBanners)
           setBanners(formattedBanners)
