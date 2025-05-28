@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { getStrapiImageUrl } from "../utils/strapi-helpers"
+// import { getPlaceholderImage } from "../utils/strapi-helpers"
 
 export default function HeroBanner() {
   const [banners, setBanners] = useState([])
@@ -12,6 +12,25 @@ export default function HeroBanner() {
   const [error, setError] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+
+  // Replace the existing getStrapiImageUrl function with this working version
+  const getStrapiImageUrl = (imageData) => {
+    if (!imageData) return null
+
+    if (imageData.data?.attributes?.url) {
+      const url = imageData.data.attributes.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    if (imageData.attributes?.url) {
+      const url = imageData.attributes.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    if (imageData.url) {
+      const url = imageData.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    return null
+  }
 
   useEffect(() => {
     async function fetchBanners() {
@@ -39,8 +58,11 @@ export default function HeroBanner() {
             .map((item) => {
               const bannerData = item.attributes
 
-              // Use our new helper function
-              const bannerImage = getStrapiImageUrl(bannerData?.image, API_URL)
+              // Debug the image data structure
+              console.log("🔍 Banner image data:", bannerData?.image)
+
+              // Update the banner processing to use this exact logic
+              const bannerImage = getStrapiImageUrl(bannerData?.image)
 
               return {
                 id: item.id,
@@ -109,7 +131,7 @@ export default function HeroBanner() {
       {/* Banner Image */}
       <div className="relative w-full h-full">
         <Image
-          src={currentBanner.image || "/placeholder.svg?height=800&width=1600"}
+          src={currentBanner.image || "/placeholder.svg"}
           alt="Sapphire Banner"
           fill
           className="object-cover"
@@ -117,7 +139,8 @@ export default function HeroBanner() {
           quality={90}
           onError={(e) => {
             console.error("❌ Banner image failed to load:", currentBanner.image)
-            e.currentTarget.src = "/placeholder.svg?height=800&width=1600"
+            e.currentTarget.src =
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60"
           }}
         />
         <div className="absolute inset-0 bg-black/20"></div>

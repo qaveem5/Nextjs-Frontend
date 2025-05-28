@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { getStrapiImageUrl } from "../utils/strapi-helpers"
 
 export default function CategoriesSection() {
   const [categories, setCategories] = useState([])
@@ -11,6 +10,25 @@ export default function CategoriesSection() {
   const [error, setError] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+
+  // Replace the existing getStrapiImageUrl function with this working version
+  const getStrapiImageUrl = (imageData) => {
+    if (!imageData) return null
+
+    if (imageData.data?.attributes?.url) {
+      const url = imageData.data.attributes.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    if (imageData.attributes?.url) {
+      const url = imageData.attributes.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    if (imageData.url) {
+      const url = imageData.url
+      return url.startsWith("http") ? url : `${API_URL}${url}`
+    }
+    return null
+  }
 
   useEffect(() => {
     async function fetchCategories() {
@@ -38,8 +56,11 @@ export default function CategoriesSection() {
             .map((item) => {
               const categoryData = item.attributes
 
-              // Use our new helper function
-              const categoryImage = getStrapiImageUrl(categoryData?.image, API_URL)
+              // Debug the image data structure
+              console.log("🔍 Category image data:", categoryData?.image)
+
+              // Update the category processing to use this exact logic
+              const categoryImage = getStrapiImageUrl(categoryData?.image)
 
               return {
                 id: item.id,
@@ -151,7 +172,8 @@ const CategoryCard = ({ category }) => (
           quality={85}
           onError={(e) => {
             console.error("❌ Category image failed to load:", category.image)
-            e.currentTarget.src = "/placeholder.svg"
+            e.currentTarget.src =
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop&crop=center&auto=format&q=60"
           }}
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
