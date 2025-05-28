@@ -3,20 +3,35 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { fallbackBanners } from "./fallback-data"
 
 export default function HeroBanner() {
   const [banners, setBanners] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+  const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "https://fallback-disabled"
 
   useEffect(() => {
     async function fetchBanners() {
+      if (API_URL === "https://fallback-disabled") {
+        console.log("Using fallback data - API not configured")
+        setBanners(fallbackBanners)
+        setLoading(false)
+        return
+      }
+
       try {
         console.log("🚀 Fetching banners from:", `${API_URL}/api/banners?populate=*`)
 
-        const res = await fetch(`${API_URL}/api/banners?populate=*`)
+        const res = await fetch(`${API_URL}/api/banners?populate=*`, {
+          // Add a timeout to prevent hanging requests
+          signal: AbortSignal.timeout(5000), // 5 second timeout
+        }).catch((err) => {
+          console.error("DNS/Network error:", err)
+          throw new Error("API unavailable")
+        })
 
         console.log("📡 Banner API Response status:", res.status)
 
@@ -38,60 +53,130 @@ export default function HeroBanner() {
             })
             .map((item) => {
               console.log("🔄 Processing banner:", item)
+              console.log("🔍 Banner attributes:", item.attributes)
               const bannerData = item.attributes
 
-              const getStrapiImageUrl = (imageData) => {
-                console.log("🖼️ Processing banner image data:", imageData)
+              const getStrapiImageUrl = (imageData, itemName = "banner") => {
+                console.log(`🖼️ Processing ${itemName} image data:`, imageData)
+                console.log(`🔍 Image data type:`, typeof imageData)
+                console.log(`🔍 Image data keys:`, imageData ? Object.keys(imageData) : "null/undefined")
 
                 if (!imageData) {
-                  console.log("⚠️ No image data found")
+                  console.log(`⚠️ No image data found for ${itemName}`)
                   return null
                 }
 
-                // Handle different Strapi image structures
-                if (imageData.data?.attributes?.url) {
-                  const url = imageData.data.attributes.url
-                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log("✅ Banner image URL (data.attributes):", fullUrl)
-                  return fullUrl
+                // Log the full structure for debugging
+                console.log(`📋 Full ${itemName} image structure:`, JSON.stringify(imageData, null, 2))
+
+                // Handle array of images (multiple images)
+                if (Array.isArray(imageData) && imageData.length > 0) {
+                  const firstImage = imageData[0]
+                  console.log(`🔍 First image in array:`, firstImage)
+                  if (firstImage?.attributes?.url) {
+                    const url = firstImage.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log(`✅ ${itemName} image URL (array):`, fullUrl)
+                    return fullUrl
+                  }
                 }
 
+                // Handle single image with data wrapper
+                if (imageData.data) {
+                  console.log(`🔍 Image data.data:`, imageData.data)
+
+                  // Single image
+                  if (imageData.data.attributes?.url) {
+                    const url = imageData.data.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log(`✅ ${itemName} image URL (data.attributes):`, fullUrl)
+                    return fullUrl
+                  }
+
+                  // Array of images in data
+                  if (Array.isArray(imageData.data) && imageData.data.length > 0) {
+                    const firstImage = imageData.data[0]
+                    console.log(`🔍 First image in data array:`, firstImage)
+                    if (firstImage?.attributes?.url) {
+                      const url = firstImage.attributes.url
+                      const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                      console.log(`✅ ${itemName} image URL (data array):`, fullUrl)
+                      return fullUrl
+                    }
+                  }
+                }
+
+                // Handle direct attributes
                 if (imageData.attributes?.url) {
                   const url = imageData.attributes.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log("✅ Banner image URL (attributes):", fullUrl)
+                  console.log(`✅ ${itemName} image URL (attributes):`, fullUrl)
                   return fullUrl
                 }
 
+                // Handle direct URL
                 if (imageData.url) {
                   const url = imageData.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log("✅ Banner image URL (direct):", fullUrl)
+                  console.log(`✅ ${itemName} image URL (direct):`, fullUrl)
                   return fullUrl
                 }
 
-                console.log("❌ Could not extract banner image URL")
+                // Handle string URL
+                if (typeof imageData === "string") {
+                  const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
+                  console.log(`✅ ${itemName} image URL (string):`, fullUrl)
+                  return fullUrl
+                }
+
+                // Handle nested image field (common in Strapi v4)
+                if (imageData.image) {
+                  console.log(`🔍 Nested image field:`, imageData.image)
+                  return getStrapiImageUrl(imageData.image, itemName)
+                }
+
+                // Handle formats field (Strapi image formats)
+                if (imageData.formats) {
+                  console.log(`🔍 Image formats available:`, Object.keys(imageData.formats))
+                  const format = imageData.formats.medium || imageData.formats.small || imageData.formats.thumbnail
+                  if (format?.url) {
+                    const fullUrl = format.url.startsWith("http") ? format.url : `${API_URL}${format.url}`
+                    console.log(`✅ ${itemName} image URL (format):`, fullUrl)
+                    return fullUrl
+                  }
+                }
+
+                console.log(`❌ Could not extract ${itemName} image URL from:`, imageData)
                 return null
               }
 
-              const bannerImage = getStrapiImageUrl(bannerData?.image)
+              const bannerImage = getStrapiImageUrl(bannerData?.image, `banner-${item.id}`)
 
               return {
                 id: item.id,
                 image: bannerImage,
+                title: bannerData?.title || "MAN",
+                subtitle: bannerData?.subtitle || "EID II",
+                primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
+                secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
+                primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
+                secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
               }
             })
-            .filter((banner) => banner.image) // Only keep banners with valid images
+          // Remove this filter temporarily to see all banners
+          // .filter((banner) => banner.image)
 
           console.log("🎯 Final formatted banners:", formattedBanners)
           setBanners(formattedBanners)
         } else {
-          console.log("⚠️ No banner data found in response")
-          setBanners([])
+          console.log("⚠️ No banner data found in response, using fallbacks")
+          setBanners(fallbackBanners)
         }
       } catch (error) {
         console.error("💥 Error fetching banners:", error)
-        setBanners([])
+        setError(true)
+        // Use fallback data when API fails
+        setBanners(fallbackBanners)
       } finally {
         setLoading(false)
       }
@@ -137,12 +222,16 @@ export default function HeroBanner() {
       {/* Banner Image */}
       <div className="relative w-full h-full">
         <Image
-          src={currentBanner.image || "/placeholder.svg"}
+          src={currentBanner.image || "/placeholder.svg?height=800&width=1600"}
           alt="Sapphire Banner"
           fill
           className="object-cover"
           priority
           quality={90}
+          onError={(e) => {
+            console.error("❌ Banner image failed to load:", currentBanner.image)
+            e.currentTarget.src = "/placeholder.svg?height=800&width=1600"
+          }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
@@ -152,22 +241,22 @@ export default function HeroBanner() {
         <div className="container mx-auto px-4">
           <div className="max-w-lg">
             <div className="text-white mb-8">
-              <h1 className="text-6xl md:text-8xl font-bold tracking-wider mb-2">MAN</h1>
-              <h2 className="text-2xl md:text-3xl font-light tracking-widest">EID II</h2>
+              <h1 className="text-6xl md:text-8xl font-bold tracking-wider mb-2">{currentBanner.title}</h1>
+              <h2 className="text-2xl md:text-3xl font-light tracking-widest">{currentBanner.subtitle}</h2>
             </div>
 
             <div className="flex gap-4">
               <Link
-                href="/products?category=men&type=unstitched"
+                href={currentBanner.primaryButtonLink}
                 className="bg-white text-black px-8 py-3 font-semibold tracking-wide hover:bg-gray-100 transition-colors"
               >
-                UNSTITCHED
+                {currentBanner.primaryButtonText}
               </Link>
               <Link
-                href="/products?category=men&type=stitched"
+                href={currentBanner.secondaryButtonLink}
                 className="bg-transparent border-2 border-white text-white px-8 py-3 font-semibold tracking-wide hover:bg-white hover:text-black transition-colors"
               >
-                STITCHED
+                {currentBanner.secondaryButtonText}
               </Link>
             </div>
           </div>
@@ -189,6 +278,12 @@ export default function HeroBanner() {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="absolute bottom-4 right-4 bg-yellow-50 border border-yellow-200 p-2 rounded text-xs text-yellow-800">
+          Using fallback data (API connection error)
         </div>
       )}
     </section>
