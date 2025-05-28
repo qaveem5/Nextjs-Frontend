@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-// import { getPlaceholderImage } from "../utils/strapi-helpers"
 
 export default function HeroBanner() {
   const [banners, setBanners] = useState([])
@@ -13,7 +12,6 @@ export default function HeroBanner() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Replace the existing getStrapiImageUrl function with this working version
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
@@ -35,69 +33,82 @@ export default function HeroBanner() {
   useEffect(() => {
     async function fetchBanners() {
       try {
-        console.log("🚀 Fetching banners from:", `${API_URL}/api/banners?populate=*`)
+        // Try multiple populate strategies
+        const populateQueries = [
+          `${API_URL}/api/banners?populate[image][fields][0]=url&populate[image][fields][1]=name`,
+          `${API_URL}/api/banners?populate=image`,
+          `${API_URL}/api/banners?populate[0]=image`,
+          `${API_URL}/api/banners?populate=*`,
+        ]
 
-        const res = await fetch(`${API_URL}/api/banners?populate=*`)
+        let responseData = null
+        let successfulQuery = null
 
-        console.log("📡 Banner API Response status:", res.status)
+        for (const query of populateQueries) {
+          try {
+            console.log("🚀 Trying banner query:", query)
+            const res = await fetch(query)
 
-        if (!res.ok) {
-          console.error("❌ Banner API failed with status:", res.status)
-          throw new Error(`HTTP ${res.status}`)
+            if (res.ok) {
+              const data = await res.json()
+              console.log("✅ Banner response for query:", query, data)
+
+              // Check if this response has image data
+              if (data.data && data.data[0] && data.data[0].attributes) {
+                const attrs = data.data[0].attributes
+                console.log("🔍 Banner attributes:", attrs)
+                console.log("🔍 Banner attribute keys:", Object.keys(attrs))
+
+                // If we find image data, use this response
+                if (attrs.image !== undefined) {
+                  responseData = data
+                  successfulQuery = query
+                  console.log("✅ Found image data in response!")
+                  break
+                }
+              }
+            }
+          } catch (err) {
+            console.log("❌ Query failed:", query, err.message)
+            continue
+          }
         }
 
-        const responseData = await res.json()
-        console.log("✅ Banner API Response:", responseData)
-
-        // Debug the full structure
-        if (responseData.data && responseData.data[0]) {
-          console.log("🔍 Full banner item:", responseData.data[0])
-          console.log("🔍 Banner attributes:", responseData.data[0].attributes)
-          console.log("🔍 All banner attribute keys:", Object.keys(responseData.data[0].attributes || {}))
+        if (!responseData) {
+          throw new Error("No successful query found")
         }
+
+        console.log("🎯 Using successful query:", successfulQuery)
+        console.log("🎯 Final banner response:", responseData)
 
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-          const formattedBanners = responseData.data.map((item) => {
-            const bannerData = item.attributes
+          const formattedBanners = responseData.data
+            .filter((item) => {
+              const isActive = item.attributes?.isActive !== false
+              return isActive
+            })
+            .map((item) => {
+              const bannerData = item.attributes
 
-            // Debug the image data structure with more detail
-            console.log("🔍 Banner image data:", bannerData?.image)
-            console.log("🔍 All banner data keys:", Object.keys(bannerData || {}))
+              console.log("🔍 Processing banner item:", item)
+              console.log("🔍 Banner image field:", bannerData?.image)
 
-            // Try different possible image field names
-            let bannerImage = null
+              const bannerImage = getStrapiImageUrl(bannerData?.image)
+              console.log("🎯 Extracted banner image URL:", bannerImage)
 
-            // Try the standard image field
-            if (bannerData?.image) {
-              bannerImage = getStrapiImageUrl(bannerData.image)
-            }
-
-            // Try alternative field names that might be used
-            if (!bannerImage && bannerData?.Image) {
-              bannerImage = getStrapiImageUrl(bannerData.Image)
-            }
-
-            if (!bannerImage && bannerData?.banner_image) {
-              bannerImage = getStrapiImageUrl(bannerData.banner_image)
-            }
-
-            if (!bannerImage && bannerData?.bannerImage) {
-              bannerImage = getStrapiImageUrl(bannerData.bannerImage)
-            }
-
-            console.log("🎯 Extracted banner image URL:", bannerImage)
-
-            return {
-              id: item.id,
-              image: bannerImage,
-              title: bannerData?.title || "MAN",
-              subtitle: bannerData?.subtitle || "EID II",
-              primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
-              secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
-              primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
-              secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
-            }
-          })
+              return {
+                id: item.id,
+                image:
+                  bannerImage ||
+                  `https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60`,
+                title: bannerData?.title || "MAN",
+                subtitle: bannerData?.subtitle || "EID II",
+                primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
+                secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
+                primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
+                secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
+              }
+            })
 
           console.log("🎯 Final formatted banners:", formattedBanners)
           setBanners(formattedBanners)
@@ -160,11 +171,6 @@ export default function HeroBanner() {
           className="object-cover"
           priority
           quality={90}
-          onError={(e) => {
-            console.error("❌ Banner image failed to load:", currentBanner.image)
-            e.currentTarget.src =
-              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60"
-          }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
