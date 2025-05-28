@@ -15,6 +15,10 @@ const CategoryCard = memo(({ category }) => (
           className="object-cover group-hover:scale-105 transition-transform duration-500"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           quality={85}
+          onError={(e) => {
+            console.error("❌ Category image failed to load:", category.image)
+            e.currentTarget.src = "/placeholder.svg"
+          }}
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
 
@@ -66,7 +70,6 @@ export default function CategoriesSection() {
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedCategories = responseData.data
             .filter((item) => {
-              // Check if category is active
               const isActive = item.attributes?.isActive !== false
               console.log(`Category ${item.id} isActive:`, isActive)
               return isActive
@@ -83,14 +86,40 @@ export default function CategoriesSection() {
                   return null
                 }
 
-                // Handle different Strapi image structures
-                if (imageData.data?.attributes?.url) {
-                  const url = imageData.data.attributes.url
-                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log("✅ Category image URL (data.attributes):", fullUrl)
-                  return fullUrl
+                // Handle array of images (multiple images)
+                if (Array.isArray(imageData) && imageData.length > 0) {
+                  const firstImage = imageData[0]
+                  if (firstImage?.attributes?.url) {
+                    const url = firstImage.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log("✅ Category image URL (array):", fullUrl)
+                    return fullUrl
+                  }
                 }
 
+                // Handle single image with data wrapper
+                if (imageData.data) {
+                  // Single image
+                  if (imageData.data.attributes?.url) {
+                    const url = imageData.data.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log("✅ Category image URL (data.attributes):", fullUrl)
+                    return fullUrl
+                  }
+
+                  // Array of images in data
+                  if (Array.isArray(imageData.data) && imageData.data.length > 0) {
+                    const firstImage = imageData.data[0]
+                    if (firstImage?.attributes?.url) {
+                      const url = firstImage.attributes.url
+                      const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                      console.log("✅ Category image URL (data array):", fullUrl)
+                      return fullUrl
+                    }
+                  }
+                }
+
+                // Handle direct attributes
                 if (imageData.attributes?.url) {
                   const url = imageData.attributes.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
@@ -98,6 +127,7 @@ export default function CategoriesSection() {
                   return fullUrl
                 }
 
+                // Handle direct URL
                 if (imageData.url) {
                   const url = imageData.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
@@ -105,19 +135,29 @@ export default function CategoriesSection() {
                   return fullUrl
                 }
 
-                console.log("❌ Could not extract category image URL")
+                // Handle string URL
+                if (typeof imageData === "string") {
+                  const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
+                  console.log("✅ Category image URL (string):", fullUrl)
+                  return fullUrl
+                }
+
+                console.log("❌ Could not extract category image URL from:", imageData)
                 return null
               }
 
               const categoryImage = getStrapiImageUrl(categoryData?.image)
 
-              return {
+              const category = {
                 id: item.id,
                 name: categoryData?.name || "Category",
                 slug: categoryData?.slug || "",
                 description: categoryData?.description || "Discover our collection",
                 image: categoryImage,
               }
+
+              console.log("🎯 Processed category:", category)
+              return category
             })
             .filter((category) => category.image) // Only keep categories with valid images
 
@@ -163,6 +203,12 @@ export default function CategoriesSection() {
               ))
             : categories.map((category) => <CategoryCard key={category.id} category={category} />)}
         </div>
+
+        {!loading && categories.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No categories found</p>
+          </div>
+        )}
       </div>
     </section>
   )

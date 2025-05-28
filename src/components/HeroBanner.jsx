@@ -31,7 +31,6 @@ export default function HeroBanner() {
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedBanners = responseData.data
             .filter((item) => {
-              // Check if banner is active
               const isActive = item.attributes?.isActive !== false
               console.log(`Banner ${item.id} isActive:`, isActive)
               return isActive
@@ -48,14 +47,40 @@ export default function HeroBanner() {
                   return null
                 }
 
-                // Handle different Strapi image structures
-                if (imageData.data?.attributes?.url) {
-                  const url = imageData.data.attributes.url
-                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log("✅ Banner image URL (data.attributes):", fullUrl)
-                  return fullUrl
+                // Handle array of images (multiple images)
+                if (Array.isArray(imageData) && imageData.length > 0) {
+                  const firstImage = imageData[0]
+                  if (firstImage?.attributes?.url) {
+                    const url = firstImage.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log("✅ Banner image URL (array):", fullUrl)
+                    return fullUrl
+                  }
                 }
 
+                // Handle single image with data wrapper
+                if (imageData.data) {
+                  // Single image
+                  if (imageData.data.attributes?.url) {
+                    const url = imageData.data.attributes.url
+                    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                    console.log("✅ Banner image URL (data.attributes):", fullUrl)
+                    return fullUrl
+                  }
+
+                  // Array of images in data
+                  if (Array.isArray(imageData.data) && imageData.data.length > 0) {
+                    const firstImage = imageData.data[0]
+                    if (firstImage?.attributes?.url) {
+                      const url = firstImage.attributes.url
+                      const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                      console.log("✅ Banner image URL (data array):", fullUrl)
+                      return fullUrl
+                    }
+                  }
+                }
+
+                // Handle direct attributes
                 if (imageData.attributes?.url) {
                   const url = imageData.attributes.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
@@ -63,6 +88,7 @@ export default function HeroBanner() {
                   return fullUrl
                 }
 
+                // Handle direct URL
                 if (imageData.url) {
                   const url = imageData.url
                   const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
@@ -70,16 +96,32 @@ export default function HeroBanner() {
                   return fullUrl
                 }
 
-                console.log("❌ Could not extract banner image URL")
+                // Handle string URL
+                if (typeof imageData === "string") {
+                  const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
+                  console.log("✅ Banner image URL (string):", fullUrl)
+                  return fullUrl
+                }
+
+                console.log("❌ Could not extract banner image URL from:", imageData)
                 return null
               }
 
               const bannerImage = getStrapiImageUrl(bannerData?.image)
 
-              return {
+              const banner = {
                 id: item.id,
                 image: bannerImage,
+                title: bannerData?.title || "Banner",
+                subtitle: bannerData?.subtitle || "",
+                primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
+                secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
+                primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
+                secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
               }
+
+              console.log("🎯 Processed banner:", banner)
+              return banner
             })
             .filter((banner) => banner.image) // Only keep banners with valid images
 
@@ -138,11 +180,15 @@ export default function HeroBanner() {
       <div className="relative w-full h-full">
         <Image
           src={currentBanner.image || "/placeholder.svg"}
-          alt="Sapphire Banner"
+          alt={currentBanner.title || "Sapphire Banner"}
           fill
           className="object-cover"
           priority
           quality={90}
+          onError={(e) => {
+            console.error("❌ Banner image failed to load:", currentBanner.image)
+            e.currentTarget.src = "/placeholder.svg"
+          }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
@@ -152,22 +198,24 @@ export default function HeroBanner() {
         <div className="container mx-auto px-4">
           <div className="max-w-lg">
             <div className="text-white mb-8">
-              <h1 className="text-6xl md:text-8xl font-bold tracking-wider mb-2">MAN</h1>
-              <h2 className="text-2xl md:text-3xl font-light tracking-widest">EID II</h2>
+              <h1 className="text-6xl md:text-8xl font-bold tracking-wider mb-2">
+                {currentBanner.title?.split(" ")[0] || "MAN"}
+              </h1>
+              <h2 className="text-2xl md:text-3xl font-light tracking-widest">{currentBanner.subtitle || "EID II"}</h2>
             </div>
 
             <div className="flex gap-4">
               <Link
-                href="/products?category=men&type=unstitched"
+                href={currentBanner.primaryButtonLink}
                 className="bg-white text-black px-8 py-3 font-semibold tracking-wide hover:bg-gray-100 transition-colors"
               >
-                UNSTITCHED
+                {currentBanner.primaryButtonText}
               </Link>
               <Link
-                href="/products?category=men&type=stitched"
+                href={currentBanner.secondaryButtonLink}
                 className="bg-transparent border-2 border-white text-white px-8 py-3 font-semibold tracking-wide hover:bg-white hover:text-black transition-colors"
               >
-                STITCHED
+                {currentBanner.secondaryButtonText}
               </Link>
             </div>
           </div>
