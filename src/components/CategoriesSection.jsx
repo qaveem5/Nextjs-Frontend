@@ -1,334 +1,177 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useState } from "react"
+import { getStrapiImageUrl } from "../utils/strapi-helpers"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:1337"
+export default function CategoriesSection() {
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-const getStrapiImageUrl = (imageData, itemName = "category") => {
-  console.log(`🖼️ Processing ${itemName} image data:`, imageData)
-  console.log(`🔍 Image data type:`, typeof imageData)
-  console.log(`🔍 Image data keys:`, imageData ? Object.keys(imageData) : "null/undefined")
+  const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  if (!imageData) {
-    console.log(`⚠️ No image data found for ${itemName}`)
-    return null
-  }
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        console.log("🚀 Fetching categories from:", `${API_URL}/api/categories?populate=*`)
 
-  // Log the full structure for debugging
-  console.log(`📋 Full ${itemName} image structure:`, JSON.stringify(imageData, null, 2))
+        const res = await fetch(`${API_URL}/api/categories?populate=*`)
 
-  // Handle array of images (multiple images)
-  if (Array.isArray(imageData) && imageData.length > 0) {
-    const firstImage = imageData[0]
-    console.log(`🔍 First image in array:`, firstImage)
-    if (firstImage?.attributes?.url) {
-      const url = firstImage.attributes.url
-      const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-      console.log(`✅ ${itemName} image URL (array):`, fullUrl)
-      return fullUrl
-    }
-  }
+        console.log("📡 Category API Response status:", res.status)
 
-  // Handle single image with data wrapper
-  if (imageData.data) {
-    console.log(`🔍 Image data.data:`, imageData.data)
+        if (!res.ok) {
+          console.error("❌ Category API failed with status:", res.status)
+          throw new Error(`HTTP ${res.status}`)
+        }
 
-    // Single image
-    if (imageData.data.attributes?.url) {
-      const url = imageData.data.attributes.url
-      const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-      console.log(`✅ ${itemName} image URL (data.attributes):`, fullUrl)
-      return fullUrl
-    }
+        const responseData = await res.json()
+        console.log("✅ Category API Response:", responseData)
 
-    // Array of images in data
-    if (Array.isArray(imageData.data) && imageData.data.length > 0) {
-      const firstImage = imageData.data[0]
-      console.log(`🔍 First image in data array:`, firstImage)
-      if (firstImage?.attributes?.url) {
-        const url = firstImage.attributes.url
-        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-        console.log(`✅ ${itemName} image URL (data array):`, fullUrl)
-        return fullUrl
+        if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+          const formattedCategories = responseData.data
+            .filter((item) => {
+              const isActive = item.attributes?.isActive !== false
+              return isActive
+            })
+            .map((item) => {
+              const categoryData = item.attributes
+
+              // Use our new helper function
+              const categoryImage = getStrapiImageUrl(categoryData?.image, API_URL)
+
+              return {
+                id: item.id,
+                name: categoryData?.name || "Category",
+                slug: categoryData?.slug || "",
+                description: categoryData?.description || "Discover our collection",
+                image: categoryImage,
+              }
+            })
+
+          console.log("🎯 Final formatted categories:", formattedCategories)
+          setCategories(formattedCategories)
+        } else {
+          console.log("⚠️ No category data found in response")
+          setCategories([])
+        }
+      } catch (error) {
+        console.error("💥 Error fetching categories:", error)
+        setError(true)
+        setCategories([])
+      } finally {
+        setLoading(false)
       }
     }
+
+    fetchCategories()
+  }, [API_URL])
+
+  if (loading) {
+    return (
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Shop by Category</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Explore our diverse collection of premium fashion for every occasion
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="animate-pulse">
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="aspect-[4/3] bg-gray-200"></div>
+                  <div className="p-6">
+                    <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
   }
 
-  // Handle direct attributes
-  if (imageData.attributes?.url) {
-    const url = imageData.attributes.url
-    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-    console.log(`✅ ${itemName} image URL (attributes):`, fullUrl)
-    return fullUrl
+  if (error) {
+    return (
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4 text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Error Loading Categories</h3>
+          <p className="text-gray-600 mb-4">Unable to load categories. Please try again later.</p>
+        </div>
+      </section>
+    )
   }
-
-  // Handle direct URL
-  if (imageData.url) {
-    const url = imageData.url
-    const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-    console.log(`✅ ${itemName} image URL (direct):`, fullUrl)
-    return fullUrl
-  }
-
-  // Handle string URL
-  if (typeof imageData === "string") {
-    const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
-    console.log(`✅ ${itemName} image URL (string):`, fullUrl)
-    return fullUrl
-  }
-
-  // Handle nested image field (common in Strapi v4)
-  if (imageData.image) {
-    console.log(`🔍 Nested image field:`, imageData.image)
-    return getStrapiImageUrl(imageData.image, itemName)
-  }
-
-  // Handle formats field (Strapi image formats)
-  if (imageData.formats) {
-    console.log(`🔍 Image formats available:`, Object.keys(imageData.formats))
-    const format = imageData.formats.medium || imageData.formats.small || imageData.formats.thumbnail
-    if (format?.url) {
-      const fullUrl = format.url.startsWith("http") ? format.url : `${API_URL}${format.url}`
-      console.log(`✅ ${itemName} image URL (format):`, fullUrl)
-      return fullUrl
-    }
-  }
-
-  console.log(`❌ Could not extract ${itemName} image URL from:`, imageData)
-  return null
-}
-
-const CategoriesSection = ({ categories }) => {
-  const processedCategories = categories.map((item) => {
-    console.log("🔄 Processing category:", item)
-    console.log("🔍 Category attributes:", item.attributes)
-    const categoryData = item.attributes
-
-    const categoryImage = getStrapiImageUrl(categoryData?.image, `category-${item.id}`)
-
-    return {
-      id: item.id,
-      name: categoryData?.name || "Category",
-      slug: categoryData?.slug || "",
-      description: categoryData?.description || "Discover our collection",
-      image: categoryImage,
-    }
-  })
-  // Remove this filter temporarily to see all categories
-  // .filter((category) => category.image)
 
   return (
-    <div className="bg-white py-12">
+    <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Explore Our Categories</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {processedCategories.map((category) => (
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Shop by Category</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Explore our diverse collection of premium fashion for every occasion
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {categories.map((category) => (
             <CategoryCard key={category.id} category={category} />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
-const CategoryCard = ({ category }) => {
-  return (
-    <Link
-      href={`/categories/${category.slug}`}
-      className="group relative block h-64 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
-    >
-      <Image
-        src={category.image || "/placeholder.svg"}
-        alt={category.name}
-        fill
-        className="object-cover group-hover:scale-105 transition-transform duration-500"
-        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        quality={85}
-        onError={(e) => {
-          console.error("❌ Category image failed to load:", category.image)
-          e.currentTarget.src = "/placeholder.svg"
-        }}
-      />
-      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-        <h3 className="text-xl font-semibold text-white group-hover:scale-110 transition-transform duration-300">
-          {category.name}
-        </h3>
+const CategoryCard = ({ category }) => (
+  <Link href={`/products?category=${category.slug}`} className="group">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <Image
+          src={category.image || "/placeholder.svg"}
+          alt={category.name}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          quality={85}
+          onError={(e) => {
+            console.error("❌ Category image failed to load:", category.image)
+            e.currentTarget.src = "/placeholder.svg"
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
+
+        <div className="absolute inset-0 flex items-center justify-center">
+          <h3 className="text-white text-2xl md:text-3xl font-bold tracking-wide text-center">
+            {category.name.toUpperCase()}
+          </h3>
+        </div>
       </div>
-    </Link>
-  )
-}
 
-export default CategoriesSection
-
-async function fetchCategories() {
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  try {
-    console.log("🚀 Fetching categories from:", `${API_URL}/api/categories?populate=*`)
-
-    const res = await fetch(`${API_URL}/api/categories?populate=*`)
-
-    console.log("📡 Category API Response status:", res.status)
-
-    if (!res.ok) {
-      console.error("❌ Category API failed with status:", res.status)
-      throw new Error(`HTTP ${res.status}`)
-    }
-
-    const responseData = await res.json()
-    console.log("✅ Category API Response:", responseData)
-
-    // 🔍 DETAILED DEBUGGING - Log the complete structure
-    console.log("🔍 DEBUGGING: Complete categories response structure:", JSON.stringify(responseData, null, 2))
-
-    if (responseData.data && responseData.data.length > 0) {
-      responseData.data.forEach((item, index) => {
-        console.log(`🔍 DEBUGGING: Category ${index + 1} complete structure:`, JSON.stringify(item, null, 2))
-        console.log(`🔍 DEBUGGING: Category ${index + 1} attributes:`, item.attributes)
-        console.log(`🔍 DEBUGGING: Category ${index + 1} image field:`, item.attributes?.image)
-
-        // Check all possible image field names
-        const attrs = item.attributes || {}
-        Object.keys(attrs).forEach((key) => {
-          if (
-            key.toLowerCase().includes("image") ||
-            key.toLowerCase().includes("photo") ||
-            key.toLowerCase().includes("picture")
-          ) {
-            console.log(`🔍 DEBUGGING: Found image-related field "${key}":`, attrs[key])
-          }
-        })
-      })
-    }
-
-    if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-      const formattedCategories = responseData.data
-        .filter((item) => {
-          const isActive = item.attributes?.isActive !== false
-          console.log(`Category ${item.id} isActive:`, isActive)
-          return isActive
-        })
-        .map((item) => {
-          console.log("🔄 Processing category:", item)
-          const categoryData = item.attributes
-
-          const getStrapiImageUrl = (imageData, itemName = "category") => {
-            console.log(`🖼️ Processing ${itemName} image data:`, imageData)
-            console.log(`🔍 Image data type:`, typeof imageData)
-            console.log(`🔍 Image data keys:`, imageData ? Object.keys(imageData) : "null/undefined")
-
-            if (!imageData) {
-              console.log(`⚠️ No image data found for ${itemName}`)
-              return null
-            }
-
-            // Log the full structure for debugging
-            console.log(`📋 Full ${itemName} image structure:`, JSON.stringify(imageData, null, 2))
-
-            // Handle array of images (multiple images)
-            if (Array.isArray(imageData) && imageData.length > 0) {
-              const firstImage = imageData[0]
-              console.log(`🔍 First image in array:`, firstImage)
-              if (firstImage?.attributes?.url) {
-                const url = firstImage.attributes.url
-                const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                console.log(`✅ ${itemName} image URL (array):`, fullUrl)
-                return fullUrl
-              }
-            }
-
-            // Handle single image with data wrapper
-            if (imageData.data) {
-              console.log(`🔍 Image data.data:`, imageData.data)
-
-              // Single image
-              if (imageData.data.attributes?.url) {
-                const url = imageData.data.attributes.url
-                const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                console.log(`✅ ${itemName} image URL (data.attributes):`, fullUrl)
-                return fullUrl
-              }
-
-              // Array of images in data
-              if (Array.isArray(imageData.data) && imageData.data.length > 0) {
-                const firstImage = imageData.data[0]
-                console.log(`🔍 First image in data array:`, firstImage)
-                if (firstImage?.attributes?.url) {
-                  const url = firstImage.attributes.url
-                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-                  console.log(`✅ ${itemName} image URL (data array):`, fullUrl)
-                  return fullUrl
-                }
-              }
-            }
-
-            // Handle direct attributes
-            if (imageData.attributes?.url) {
-              const url = imageData.attributes.url
-              const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-              console.log(`✅ ${itemName} image URL (attributes):`, fullUrl)
-              return fullUrl
-            }
-
-            // Handle direct URL
-            if (imageData.url) {
-              const url = imageData.url
-              const fullUrl = imageData.url.startsWith("http") ? imageData.url : `${API_URL}${imageData.url}`
-              console.log(`✅ ${itemName} image URL (direct):`, fullUrl)
-              return fullUrl
-            }
-
-            // Handle string URL
-            if (typeof imageData === "string") {
-              const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
-              console.log(`✅ ${itemName} image URL (string):`, fullUrl)
-              return fullUrl
-            }
-
-            // Handle nested image field (common in Strapi v4)
-            if (imageData.image) {
-              console.log(`🔍 Nested image field:`, imageData.image)
-              return getStrapiImageUrl(imageData.image, itemName)
-            }
-
-            // Handle formats field (Strapi image formats)
-            if (imageData.formats) {
-              console.log(`🔍 Image formats available:`, Object.keys(imageData.formats))
-              const format = imageData.formats.medium || imageData.formats.small || imageData.formats.thumbnail
-              if (format?.url) {
-                const fullUrl = format.url.startsWith("http") ? format.url : `${API_URL}${format.url}`
-                console.log(`✅ ${itemName} image URL (format):`, fullUrl)
-                return fullUrl
-              }
-            }
-
-            console.log(`❌ Could not extract ${itemName} image URL from:`, imageData)
-            return null
-          }
-
-          const categoryImage = getStrapiImageUrl(categoryData?.image, `category-${item.id}`)
-
-          return {
-            id: item.id,
-            name: categoryData?.name || "Category",
-            slug: categoryData?.slug || "",
-            description: categoryData?.description || "Discover our collection",
-            image: categoryImage,
-          }
-        })
-
-      console.log("🎯 Final formatted categories:", formattedCategories)
-      setCategories(formattedCategories)
-    } else {
-      console.log("⚠️ No category data found in response")
-      setCategories([])
-    }
-  } catch (error) {
-    console.error("💥 Error fetching categories:", error)
-    setCategories([])
-  } finally {
-    setLoading(false)
-  }
-}
+      <div className="p-6 text-center">
+        <h3 className="text-xl font-semibold mb-2 text-gray-900">{category.name}</h3>
+        <p className="text-gray-600">{category.description}</p>
+        <div className="mt-4">
+          <span className="inline-block bg-black text-white px-4 py-2 text-sm font-medium group-hover:bg-gray-800 transition-colors">
+            SHOP NOW
+          </span>
+        </div>
+      </div>
+    </div>
+  </Link>
+)
