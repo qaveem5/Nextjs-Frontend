@@ -26,8 +26,7 @@ export default function HeroBanner() {
         console.log("🚀 Fetching banners from:", `${API_URL}/api/banners?populate=*`)
 
         const res = await fetch(`${API_URL}/api/banners?populate=*`, {
-          // Add a timeout to prevent hanging requests
-          signal: AbortSignal.timeout(5000), // 5 second timeout
+          signal: AbortSignal.timeout(5000),
         }).catch((err) => {
           console.error("DNS/Network error:", err)
           throw new Error("API unavailable")
@@ -43,17 +42,38 @@ export default function HeroBanner() {
         const responseData = await res.json()
         console.log("✅ Banner API Response:", responseData)
 
+        // 🔍 DETAILED DEBUGGING - Log the complete structure
+        console.log("🔍 DEBUGGING: Complete response structure:", JSON.stringify(responseData, null, 2))
+
+        if (responseData.data && responseData.data.length > 0) {
+          responseData.data.forEach((item, index) => {
+            console.log(`🔍 DEBUGGING: Banner ${index + 1} complete structure:`, JSON.stringify(item, null, 2))
+            console.log(`🔍 DEBUGGING: Banner ${index + 1} attributes:`, item.attributes)
+            console.log(`🔍 DEBUGGING: Banner ${index + 1} image field:`, item.attributes?.image)
+
+            // Check all possible image field names
+            const attrs = item.attributes || {}
+            Object.keys(attrs).forEach((key) => {
+              if (
+                key.toLowerCase().includes("image") ||
+                key.toLowerCase().includes("photo") ||
+                key.toLowerCase().includes("picture")
+              ) {
+                console.log(`🔍 DEBUGGING: Found image-related field "${key}":`, attrs[key])
+              }
+            })
+          })
+        }
+
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedBanners = responseData.data
             .filter((item) => {
-              // Check if banner is active
               const isActive = item.attributes?.isActive !== false
               console.log(`Banner ${item.id} isActive:`, isActive)
               return isActive
             })
             .map((item) => {
               console.log("🔄 Processing banner:", item)
-              console.log("🔍 Banner attributes:", item.attributes)
               const bannerData = item.attributes
 
               const getStrapiImageUrl = (imageData, itemName = "banner") => {
@@ -163,8 +183,6 @@ export default function HeroBanner() {
                 secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
               }
             })
-          // Remove this filter temporarily to see all banners
-          // .filter((banner) => banner.image)
 
           console.log("🎯 Final formatted banners:", formattedBanners)
           setBanners(formattedBanners)
@@ -175,7 +193,6 @@ export default function HeroBanner() {
       } catch (error) {
         console.error("💥 Error fetching banners:", error)
         setError(true)
-        // Use fallback data when API fails
         setBanners(fallbackBanners)
       } finally {
         setLoading(false)

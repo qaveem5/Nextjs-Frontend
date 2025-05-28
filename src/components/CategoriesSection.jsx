@@ -1,5 +1,8 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
+import { useState } from "react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:1337"
 
@@ -158,3 +161,174 @@ const CategoryCard = ({ category }) => {
 }
 
 export default CategoriesSection
+
+async function fetchCategories() {
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  try {
+    console.log("🚀 Fetching categories from:", `${API_URL}/api/categories?populate=*`)
+
+    const res = await fetch(`${API_URL}/api/categories?populate=*`)
+
+    console.log("📡 Category API Response status:", res.status)
+
+    if (!res.ok) {
+      console.error("❌ Category API failed with status:", res.status)
+      throw new Error(`HTTP ${res.status}`)
+    }
+
+    const responseData = await res.json()
+    console.log("✅ Category API Response:", responseData)
+
+    // 🔍 DETAILED DEBUGGING - Log the complete structure
+    console.log("🔍 DEBUGGING: Complete categories response structure:", JSON.stringify(responseData, null, 2))
+
+    if (responseData.data && responseData.data.length > 0) {
+      responseData.data.forEach((item, index) => {
+        console.log(`🔍 DEBUGGING: Category ${index + 1} complete structure:`, JSON.stringify(item, null, 2))
+        console.log(`🔍 DEBUGGING: Category ${index + 1} attributes:`, item.attributes)
+        console.log(`🔍 DEBUGGING: Category ${index + 1} image field:`, item.attributes?.image)
+
+        // Check all possible image field names
+        const attrs = item.attributes || {}
+        Object.keys(attrs).forEach((key) => {
+          if (
+            key.toLowerCase().includes("image") ||
+            key.toLowerCase().includes("photo") ||
+            key.toLowerCase().includes("picture")
+          ) {
+            console.log(`🔍 DEBUGGING: Found image-related field "${key}":`, attrs[key])
+          }
+        })
+      })
+    }
+
+    if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+      const formattedCategories = responseData.data
+        .filter((item) => {
+          const isActive = item.attributes?.isActive !== false
+          console.log(`Category ${item.id} isActive:`, isActive)
+          return isActive
+        })
+        .map((item) => {
+          console.log("🔄 Processing category:", item)
+          const categoryData = item.attributes
+
+          const getStrapiImageUrl = (imageData, itemName = "category") => {
+            console.log(`🖼️ Processing ${itemName} image data:`, imageData)
+            console.log(`🔍 Image data type:`, typeof imageData)
+            console.log(`🔍 Image data keys:`, imageData ? Object.keys(imageData) : "null/undefined")
+
+            if (!imageData) {
+              console.log(`⚠️ No image data found for ${itemName}`)
+              return null
+            }
+
+            // Log the full structure for debugging
+            console.log(`📋 Full ${itemName} image structure:`, JSON.stringify(imageData, null, 2))
+
+            // Handle array of images (multiple images)
+            if (Array.isArray(imageData) && imageData.length > 0) {
+              const firstImage = imageData[0]
+              console.log(`🔍 First image in array:`, firstImage)
+              if (firstImage?.attributes?.url) {
+                const url = firstImage.attributes.url
+                const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                console.log(`✅ ${itemName} image URL (array):`, fullUrl)
+                return fullUrl
+              }
+            }
+
+            // Handle single image with data wrapper
+            if (imageData.data) {
+              console.log(`🔍 Image data.data:`, imageData.data)
+
+              // Single image
+              if (imageData.data.attributes?.url) {
+                const url = imageData.data.attributes.url
+                const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                console.log(`✅ ${itemName} image URL (data.attributes):`, fullUrl)
+                return fullUrl
+              }
+
+              // Array of images in data
+              if (Array.isArray(imageData.data) && imageData.data.length > 0) {
+                const firstImage = imageData.data[0]
+                console.log(`🔍 First image in data array:`, firstImage)
+                if (firstImage?.attributes?.url) {
+                  const url = firstImage.attributes.url
+                  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+                  console.log(`✅ ${itemName} image URL (data array):`, fullUrl)
+                  return fullUrl
+                }
+              }
+            }
+
+            // Handle direct attributes
+            if (imageData.attributes?.url) {
+              const url = imageData.attributes.url
+              const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+              console.log(`✅ ${itemName} image URL (attributes):`, fullUrl)
+              return fullUrl
+            }
+
+            // Handle direct URL
+            if (imageData.url) {
+              const url = imageData.url
+              const fullUrl = imageData.url.startsWith("http") ? imageData.url : `${API_URL}${imageData.url}`
+              console.log(`✅ ${itemName} image URL (direct):`, fullUrl)
+              return fullUrl
+            }
+
+            // Handle string URL
+            if (typeof imageData === "string") {
+              const fullUrl = imageData.startsWith("http") ? imageData : `${API_URL}${imageData}`
+              console.log(`✅ ${itemName} image URL (string):`, fullUrl)
+              return fullUrl
+            }
+
+            // Handle nested image field (common in Strapi v4)
+            if (imageData.image) {
+              console.log(`🔍 Nested image field:`, imageData.image)
+              return getStrapiImageUrl(imageData.image, itemName)
+            }
+
+            // Handle formats field (Strapi image formats)
+            if (imageData.formats) {
+              console.log(`🔍 Image formats available:`, Object.keys(imageData.formats))
+              const format = imageData.formats.medium || imageData.formats.small || imageData.formats.thumbnail
+              if (format?.url) {
+                const fullUrl = format.url.startsWith("http") ? format.url : `${API_URL}${format.url}`
+                console.log(`✅ ${itemName} image URL (format):`, fullUrl)
+                return fullUrl
+              }
+            }
+
+            console.log(`❌ Could not extract ${itemName} image URL from:`, imageData)
+            return null
+          }
+
+          const categoryImage = getStrapiImageUrl(categoryData?.image, `category-${item.id}`)
+
+          return {
+            id: item.id,
+            name: categoryData?.name || "Category",
+            slug: categoryData?.slug || "",
+            description: categoryData?.description || "Discover our collection",
+            image: categoryImage,
+          }
+        })
+
+      console.log("🎯 Final formatted categories:", formattedCategories)
+      setCategories(formattedCategories)
+    } else {
+      console.log("⚠️ No category data found in response")
+      setCategories([])
+    }
+  } catch (error) {
+    console.error("💥 Error fetching categories:", error)
+    setCategories([])
+  } finally {
+    setLoading(false)
+  }
+}
