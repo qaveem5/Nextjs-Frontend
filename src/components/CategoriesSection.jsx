@@ -14,6 +14,13 @@ export default function CategoriesSection() {
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
+    // Handle the structure we see in your logs: {id: 14, name: "men.webp", ...}
+    if (imageData.name) {
+      // Construct URL from the image name
+      return `${API_URL}/uploads/${imageData.name}`
+    }
+
+    // Fallback to other possible structures
     if (imageData.data?.attributes?.url) {
       const url = imageData.data.attributes.url
       return url.startsWith("http") ? url : `${API_URL}${url}`
@@ -32,84 +39,41 @@ export default function CategoriesSection() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        // Try multiple populate strategies
-        const populateQueries = [
-          `${API_URL}/api/categories?populate[image][fields][0]=url&populate[image][fields][1]=name`,
-          `${API_URL}/api/categories?populate=image`,
-          `${API_URL}/api/categories?populate[0]=image`,
-          `${API_URL}/api/categories?populate=*`,
-        ]
+        console.log("🚀 Fetching categories from:", `${API_URL}/api/categories?populate=image`)
 
-        let responseData = null
-        let successfulQuery = null
+        const res = await fetch(`${API_URL}/api/categories?populate=image`)
 
-        for (const query of populateQueries) {
-          try {
-            console.log("🚀 Trying category query:", query)
-            const res = await fetch(query)
+        console.log("📡 Category API Response status:", res.status)
 
-            if (res.ok) {
-              const data = await res.json()
-              console.log("✅ Category response for query:", query, data)
-
-              // Check if this response has image data
-              if (data.data && data.data[0] && data.data[0].attributes) {
-                const attrs = data.data[0].attributes
-                console.log("🔍 Category attributes:", attrs)
-                console.log("🔍 Category attribute keys:", Object.keys(attrs))
-
-                // If we find image data, use this response
-                if (attrs.image !== undefined) {
-                  responseData = data
-                  successfulQuery = query
-                  console.log("✅ Found image data in response!")
-                  break
-                }
-              }
-            }
-          } catch (err) {
-            console.log("❌ Query failed:", query, err.message)
-            continue
-          }
+        if (!res.ok) {
+          console.error("❌ Category API failed with status:", res.status)
+          throw new Error(`HTTP ${res.status}`)
         }
 
-        if (!responseData) {
-          throw new Error("No successful query found")
-        }
-
-        console.log("🎯 Using successful query:", successfulQuery)
-        console.log("🎯 Final category response:", responseData)
+        const responseData = await res.json()
+        console.log("✅ Category API Response:", responseData)
 
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedCategories = responseData.data
             .filter((item) => {
-              const isActive = item.attributes?.isActive !== false
+              // Check isActive at root level since that's where it is in your structure
+              const isActive = item.isActive !== false
               return isActive
             })
             .map((item) => {
-              const categoryData = item.attributes
-
               console.log("🔍 Processing category item:", item)
-              console.log("🔍 Category image field:", categoryData?.image)
+              console.log("🔍 Category image field (root level):", item.image)
 
-              const categoryImage = getStrapiImageUrl(categoryData?.image)
+              // Get image from root level, not attributes
+              const categoryImage = getStrapiImageUrl(item.image)
               console.log("🎯 Extracted category image URL:", categoryImage)
-
-              // Fallback images for each category
-              const fallbackImages = {
-                Men: "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&h=600&fit=crop&crop=center&auto=format&q=60",
-                Women:
-                  "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=600&fit=crop&crop=center&auto=format&q=60",
-                Accessories:
-                  "https://images.unsplash.com/photo-1523206489230-c012c64b2b48?w=800&h=600&fit=crop&crop=center&auto=format&q=60",
-              }
 
               return {
                 id: item.id,
-                name: categoryData?.name || "Category",
-                slug: categoryData?.slug || "",
-                description: categoryData?.description || "Discover our collection",
-                image: categoryImage || fallbackImages[categoryData?.name] || fallbackImages.Men,
+                name: item.name || "Category",
+                slug: item.slug || "",
+                description: item.description || "Discover our collection",
+                image: categoryImage,
               }
             })
 
@@ -212,6 +176,11 @@ const CategoryCard = ({ category }) => (
           className="object-cover group-hover:scale-105 transition-transform duration-500"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           quality={85}
+          onError={(e) => {
+            console.error("❌ Category image failed to load:", category.image)
+            e.currentTarget.src =
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop&crop=center&auto=format&q=60"
+          }}
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
 

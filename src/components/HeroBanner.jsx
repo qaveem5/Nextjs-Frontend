@@ -15,6 +15,13 @@ export default function HeroBanner() {
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
+    // Handle the structure we see in your logs: {id: 13, name: "Banner.webp", ...}
+    if (imageData.name) {
+      // Construct URL from the image name
+      return `${API_URL}/uploads/${imageData.name}`
+    }
+
+    // Fallback to other possible structures
     if (imageData.data?.attributes?.url) {
       const url = imageData.data.attributes.url
       return url.startsWith("http") ? url : `${API_URL}${url}`
@@ -33,80 +40,44 @@ export default function HeroBanner() {
   useEffect(() => {
     async function fetchBanners() {
       try {
-        // Try multiple populate strategies
-        const populateQueries = [
-          `${API_URL}/api/banners?populate[image][fields][0]=url&populate[image][fields][1]=name`,
-          `${API_URL}/api/banners?populate=image`,
-          `${API_URL}/api/banners?populate[0]=image`,
-          `${API_URL}/api/banners?populate=*`,
-        ]
+        console.log("🚀 Fetching banners from:", `${API_URL}/api/banners?populate=image`)
 
-        let responseData = null
-        let successfulQuery = null
+        const res = await fetch(`${API_URL}/api/banners?populate=image`)
 
-        for (const query of populateQueries) {
-          try {
-            console.log("🚀 Trying banner query:", query)
-            const res = await fetch(query)
+        console.log("📡 Banner API Response status:", res.status)
 
-            if (res.ok) {
-              const data = await res.json()
-              console.log("✅ Banner response for query:", query, data)
-
-              // Check if this response has image data
-              if (data.data && data.data[0] && data.data[0].attributes) {
-                const attrs = data.data[0].attributes
-                console.log("🔍 Banner attributes:", attrs)
-                console.log("🔍 Banner attribute keys:", Object.keys(attrs))
-
-                // If we find image data, use this response
-                if (attrs.image !== undefined) {
-                  responseData = data
-                  successfulQuery = query
-                  console.log("✅ Found image data in response!")
-                  break
-                }
-              }
-            }
-          } catch (err) {
-            console.log("❌ Query failed:", query, err.message)
-            continue
-          }
+        if (!res.ok) {
+          console.error("❌ Banner API failed with status:", res.status)
+          throw new Error(`HTTP ${res.status}`)
         }
 
-        if (!responseData) {
-          throw new Error("No successful query found")
-        }
-
-        console.log("🎯 Using successful query:", successfulQuery)
-        console.log("🎯 Final banner response:", responseData)
+        const responseData = await res.json()
+        console.log("✅ Banner API Response:", responseData)
 
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedBanners = responseData.data
             .filter((item) => {
-              const isActive = item.attributes?.isActive !== false
+              // Check isActive at root level since that's where it is in your structure
+              const isActive = item.isActive !== false
               return isActive
             })
             .map((item) => {
-              const bannerData = item.attributes
-
               console.log("🔍 Processing banner item:", item)
-              console.log("🔍 Banner image field:", bannerData?.image)
+              console.log("🔍 Banner image field (root level):", item.image)
 
-              const bannerImage = getStrapiImageUrl(bannerData?.image)
+              // Get image from root level, not attributes
+              const bannerImage = getStrapiImageUrl(item.image)
               console.log("🎯 Extracted banner image URL:", bannerImage)
 
               return {
                 id: item.id,
-                image:
-                  bannerImage ||
-                  `https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60`,
-                title: bannerData?.title || "MAN",
-                subtitle: bannerData?.subtitle || "EID II",
-                primaryButtonText: bannerData?.primaryButtonText || "UNSTITCHED",
-                secondaryButtonText: bannerData?.secondaryButtonText || "STITCHED",
-                primaryButtonLink: bannerData?.primaryButtonLink || "/products?category=men&type=unstitched",
-                secondaryButtonLink: bannerData?.secondaryButtonLink || "/products?category=men&type=stitched",
+                image: bannerImage,
+                title: item.title || "MAN",
+                subtitle: item.subtitle || "EID II",
+                primaryButtonText: item.primaryButtonText || "UNSTITCHED",
+                secondaryButtonText: item.secondaryButtonText || "STITCHED",
+                primaryButtonLink: item.primaryButtonLink || "/products?category=men&type=unstitched",
+                secondaryButtonLink: item.secondaryButtonLink || "/products?category=men&type=stitched",
               }
             })
 
@@ -171,6 +142,11 @@ export default function HeroBanner() {
           className="object-cover"
           priority
           quality={90}
+          onError={(e) => {
+            console.error("❌ Banner image failed to load:", currentBanner.image)
+            e.currentTarget.src =
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60"
+          }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
