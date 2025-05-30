@@ -12,48 +12,59 @@ export default function HeroBanner() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Updated function to try multiple URL patterns
+  // Fallback banner data
+  const fallbackBanners = [
+    {
+      id: "fallback-1",
+      image:
+        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=80",
+      title: "MAN",
+      subtitle: "EID COLLECTION",
+      primaryButtonText: "UNSTITCHED",
+      secondaryButtonText: "STITCHED",
+      primaryButtonLink: "/products?category=men&type=unstitched",
+      secondaryButtonLink: "/products?category=men&type=stitched",
+    },
+  ]
+
+  // Updated function with proxy and fallback support
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
     console.log("🔍 Processing image data:", imageData)
 
     try {
-      // Check if we have a direct URL to the media server
+      // Check if we have a direct URL
       if (typeof imageData === "string" && imageData.includes("http")) {
         console.log("✅ Using direct URL:", imageData)
         return imageData
       }
 
-      // Check if we have a name property (common in Strapi v4)
+      // Check if we have a name property
       if (imageData.name) {
-        // Try multiple URL patterns
-        const patterns = [
-          // Pattern 1: Through main API server
-          `${API_URL}/uploads/${imageData.name}`,
-          // Pattern 2: Direct file access
-          `https://attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
-          // Pattern 3: Alternative media server pattern
-          `https://media.attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
-        ]
+        // Try multiple URL patterns with proxy fallback
+        const directUrl = `${API_URL}/uploads/${imageData.name}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(directUrl)}`
 
-        // Return the first pattern for now, we'll add retry logic later
-        const selectedUrl = patterns[0]
-        console.log("✅ Constructed URL via main API:", selectedUrl)
-        return selectedUrl
+        console.log("✅ Constructed proxy URL:", proxyUrl)
+        return proxyUrl
       }
 
-      // Other common Strapi patterns
+      // Other patterns
       if (imageData.url) {
         const url = imageData.url
-        console.log("✅ Using URL from image data:", url)
-        return url.startsWith("http") ? url : `${API_URL}${url}`
+        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
+        console.log("✅ Using proxy URL from image data:", proxyUrl)
+        return proxyUrl
       }
 
       if (imageData.data?.attributes?.url) {
         const url = imageData.data.attributes.url
-        console.log("✅ Using URL from data.attributes:", url)
-        return url.startsWith("http") ? url : `${API_URL}${url}`
+        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
+        console.log("✅ Using proxy URL from data.attributes:", proxyUrl)
+        return proxyUrl
       }
 
       console.log("❌ Could not extract image URL from:", imageData)
@@ -89,7 +100,6 @@ export default function HeroBanner() {
             })
             .map((item) => {
               console.log("🔍 Processing banner item:", item)
-              console.log("🔍 Banner image field (root level):", item.image)
 
               const bannerImage = getStrapiImageUrl(item.image)
               console.log("🎯 Final banner image URL:", bannerImage)
@@ -98,7 +108,7 @@ export default function HeroBanner() {
                 id: item.id,
                 image: bannerImage,
                 title: item.title || "MAN",
-                subtitle: item.subtitle || "EID II",
+                subtitle: item.subtitle || "EID COLLECTION",
                 primaryButtonText: item.primaryButtonText || "UNSTITCHED",
                 secondaryButtonText: item.secondaryButtonText || "STITCHED",
                 primaryButtonLink: item.primaryButtonLink || "/products?category=men&type=unstitched",
@@ -107,15 +117,15 @@ export default function HeroBanner() {
             })
 
           console.log("🎯 Final formatted banners:", formattedBanners)
-          setBanners(formattedBanners)
+          setBanners(formattedBanners.length > 0 ? formattedBanners : fallbackBanners)
         } else {
-          console.log("⚠️ No banner data found in response")
-          setBanners([])
+          console.log("⚠️ No banner data found, using fallback")
+          setBanners(fallbackBanners)
         }
       } catch (error) {
-        console.error("💥 Error fetching banners:", error)
+        console.error("💥 Error fetching banners, using fallback:", error)
+        setBanners(fallbackBanners)
         setError(true)
-        setBanners([])
       } finally {
         setLoading(false)
       }
@@ -144,16 +154,6 @@ export default function HeroBanner() {
     )
   }
 
-  if (!banners.length) {
-    return (
-      <div className="relative h-[70vh] bg-gray-100">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-500">No banners found</div>
-        </div>
-      </div>
-    )
-  }
-
   const currentBanner = banners[currentSlide]
 
   return (
@@ -169,9 +169,9 @@ export default function HeroBanner() {
           quality={90}
           onError={(e) => {
             console.error("❌ Banner image failed to load:", currentBanner.image)
-            // Try fallback to high-quality stock image
+            // Fallback to high-quality stock image
             e.currentTarget.src =
-              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=60"
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=80"
           }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
@@ -224,7 +224,7 @@ export default function HeroBanner() {
 
       {error && (
         <div className="absolute bottom-4 right-4 bg-yellow-50 border border-yellow-200 p-2 rounded text-xs text-yellow-800">
-          Error loading banners
+          Using fallback images
         </div>
       )}
     </section>

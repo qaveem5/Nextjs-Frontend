@@ -11,48 +11,72 @@ export default function CategoriesSection() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Updated function to try multiple URL patterns
+  // Fallback category data
+  const fallbackCategories = [
+    {
+      id: "fallback-1",
+      name: "Men",
+      slug: "men",
+      description: "Discover our men's collection",
+      image:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+    },
+    {
+      id: "fallback-2",
+      name: "Women",
+      slug: "women",
+      description: "Explore our women's collection",
+      image:
+        "https://images.unsplash.com/photo-1494790108755-2616c9c0e8e0?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+    },
+    {
+      id: "fallback-3",
+      name: "Accessories",
+      slug: "accessories",
+      description: "Complete your look with accessories",
+      image:
+        "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+    },
+  ]
+
+  // Updated function with proxy and fallback support
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
     console.log("🔍 Processing image data:", imageData)
 
     try {
-      // Check if we have a direct URL to the media server
+      // Check if we have a direct URL
       if (typeof imageData === "string" && imageData.includes("http")) {
         console.log("✅ Using direct URL:", imageData)
         return imageData
       }
 
-      // Check if we have a name property (common in Strapi v4)
+      // Check if we have a name property
       if (imageData.name) {
-        // Try multiple URL patterns
-        const patterns = [
-          // Pattern 1: Through main API server
-          `${API_URL}/uploads/${imageData.name}`,
-          // Pattern 2: Direct file access
-          `https://attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
-          // Pattern 3: Alternative media server pattern
-          `https://media.attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
-        ]
+        // Try multiple URL patterns with proxy fallback
+        const directUrl = `${API_URL}/uploads/${imageData.name}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(directUrl)}`
 
-        // Return the first pattern for now, we'll add retry logic later
-        const selectedUrl = patterns[0]
-        console.log("✅ Constructed URL via main API:", selectedUrl)
-        return selectedUrl
+        console.log("✅ Constructed proxy URL:", proxyUrl)
+        return proxyUrl
       }
 
-      // Other common Strapi patterns
+      // Other patterns
       if (imageData.url) {
         const url = imageData.url
-        console.log("✅ Using URL from image data:", url)
-        return url.startsWith("http") ? url : `${API_URL}${url}`
+        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
+        console.log("✅ Using proxy URL from image data:", proxyUrl)
+        return proxyUrl
       }
 
       if (imageData.data?.attributes?.url) {
         const url = imageData.data.attributes.url
-        console.log("✅ Using URL from data.attributes:", url)
-        return url.startsWith("http") ? url : `${API_URL}${url}`
+        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
+        console.log("✅ Using proxy URL from data.attributes:", proxyUrl)
+        return proxyUrl
       }
 
       console.log("❌ Could not extract image URL from:", imageData)
@@ -88,7 +112,6 @@ export default function CategoriesSection() {
             })
             .map((item) => {
               console.log("🔍 Processing category item:", item)
-              console.log("🔍 Category image field (root level):", item.image)
 
               const categoryImage = getStrapiImageUrl(item.image)
               console.log("🎯 Final category image URL:", categoryImage)
@@ -103,15 +126,15 @@ export default function CategoriesSection() {
             })
 
           console.log("🎯 Final formatted categories:", formattedCategories)
-          setCategories(formattedCategories)
+          setCategories(formattedCategories.length > 0 ? formattedCategories : fallbackCategories)
         } else {
-          console.log("⚠️ No category data found in response")
-          setCategories([])
+          console.log("⚠️ No category data found, using fallback")
+          setCategories(fallbackCategories)
         }
       } catch (error) {
-        console.error("💥 Error fetching categories:", error)
+        console.error("💥 Error fetching categories, using fallback:", error)
+        setCategories(fallbackCategories)
         setError(true)
-        setCategories([])
       } finally {
         setLoading(false)
       }
@@ -149,27 +172,6 @@ export default function CategoriesSection() {
     )
   }
 
-  if (error) {
-    return (
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4 text-center">
-          <div className="text-red-500 mb-4">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Error Loading Categories</h3>
-          <p className="text-gray-600 mb-4">Unable to load categories. Please try again later.</p>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
@@ -185,6 +187,14 @@ export default function CategoriesSection() {
             <CategoryCard key={category.id} category={category} />
           ))}
         </div>
+
+        {error && (
+          <div className="text-center mt-8">
+            <div className="inline-block bg-yellow-50 border border-yellow-200 p-3 rounded text-sm text-yellow-800">
+              Using fallback images due to connection issues
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -203,9 +213,15 @@ const CategoryCard = ({ category }) => (
           quality={85}
           onError={(e) => {
             console.error("❌ Category image failed to load:", category.image)
-            // Try fallback to high-quality stock image
-            e.currentTarget.src =
-              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop&crop=center&auto=format&q=60"
+            // Fallback to high-quality stock image based on category
+            const fallbackImages = {
+              men: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+              women:
+                "https://images.unsplash.com/photo-1494790108755-2616c9c0e8e0?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+              accessories:
+                "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&h=600&fit=crop&crop=center&auto=format&q=80",
+            }
+            e.currentTarget.src = fallbackImages[category.slug] || fallbackImages.accessories
           }}
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
