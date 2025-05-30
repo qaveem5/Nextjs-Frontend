@@ -12,29 +12,47 @@ export default function HeroBanner() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
+  // Updated function to handle Strapi image URLs correctly
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
-    // Handle the structure we see in your logs: {id: 13, name: "Banner.webp", ...}
-    if (imageData.name) {
-      // Construct URL from the image name
-      return `${API_URL}/uploads/${imageData.name}`
-    }
+    console.log("🔍 Processing image data:", imageData)
 
-    // Fallback to other possible structures
-    if (imageData.data?.attributes?.url) {
-      const url = imageData.data.attributes.url
-      return url.startsWith("http") ? url : `${API_URL}${url}`
+    try {
+      // Check if we have a direct URL to the media server
+      if (typeof imageData === "string" && imageData.includes("http")) {
+        console.log("✅ Using direct URL:", imageData)
+        return imageData
+      }
+
+      // Check if we have a name property (common in Strapi v4)
+      if (imageData.name) {
+        // Try to construct a URL to the Strapi media library
+        // This is the format used by Strapi Cloud
+        const mediaUrl = `https://attractive-heart-9d123fcb13-media.strapiapp.com/uploads/${imageData.name}`
+        console.log("✅ Constructed media URL:", mediaUrl)
+        return mediaUrl
+      }
+
+      // Other common Strapi patterns
+      if (imageData.url) {
+        const url = imageData.url
+        console.log("✅ Using URL from image data:", url)
+        return url.startsWith("http") ? url : `${API_URL}${url}`
+      }
+
+      if (imageData.data?.attributes?.url) {
+        const url = imageData.data.attributes.url
+        console.log("✅ Using URL from data.attributes:", url)
+        return url.startsWith("http") ? url : `${API_URL}${url}`
+      }
+
+      console.log("❌ Could not extract image URL from:", imageData)
+      return null
+    } catch (error) {
+      console.error("❌ Error processing image URL:", error)
+      return null
     }
-    if (imageData.attributes?.url) {
-      const url = imageData.attributes.url
-      return url.startsWith("http") ? url : `${API_URL}${url}`
-    }
-    if (imageData.url) {
-      const url = imageData.url
-      return url.startsWith("http") ? url : `${API_URL}${url}`
-    }
-    return null
   }
 
   useEffect(() => {
@@ -57,7 +75,6 @@ export default function HeroBanner() {
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedBanners = responseData.data
             .filter((item) => {
-              // Check isActive at root level since that's where it is in your structure
               const isActive = item.isActive !== false
               return isActive
             })
@@ -65,9 +82,8 @@ export default function HeroBanner() {
               console.log("🔍 Processing banner item:", item)
               console.log("🔍 Banner image field (root level):", item.image)
 
-              // Get image from root level, not attributes
               const bannerImage = getStrapiImageUrl(item.image)
-              console.log("🎯 Extracted banner image URL:", bannerImage)
+              console.log("🎯 Final banner image URL:", bannerImage)
 
               return {
                 id: item.id,
