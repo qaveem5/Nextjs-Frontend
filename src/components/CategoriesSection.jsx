@@ -11,7 +11,7 @@ export default function CategoriesSection() {
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Updated function to handle Strapi image URLs correctly
+  // Updated function to try multiple URL patterns
   const getStrapiImageUrl = (imageData) => {
     if (!imageData) return null
 
@@ -26,10 +26,20 @@ export default function CategoriesSection() {
 
       // Check if we have a name property (common in Strapi v4)
       if (imageData.name) {
-        // Try HTTP first due to SSL issues with Strapi Cloud media server
-        const mediaUrl = `http://attractive-heart-9d123fcb13-media.strapiapp.com/uploads/${imageData.name}`
-        console.log("✅ Constructed media URL (HTTP):", mediaUrl)
-        return mediaUrl
+        // Try multiple URL patterns
+        const patterns = [
+          // Pattern 1: Through main API server
+          `${API_URL}/uploads/${imageData.name}`,
+          // Pattern 2: Direct file access
+          `https://attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
+          // Pattern 3: Alternative media server pattern
+          `https://media.attractive-heart-9d123fcb13.strapiapp.com/uploads/${imageData.name}`,
+        ]
+
+        // Return the first pattern for now, we'll add retry logic later
+        const selectedUrl = patterns[0]
+        console.log("✅ Constructed URL via main API:", selectedUrl)
+        return selectedUrl
       }
 
       // Other common Strapi patterns
@@ -193,6 +203,7 @@ const CategoryCard = ({ category }) => (
           quality={85}
           onError={(e) => {
             console.error("❌ Category image failed to load:", category.image)
+            // Try fallback to high-quality stock image
             e.currentTarget.src =
               "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop&crop=center&auto=format&q=60"
           }}
