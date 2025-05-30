@@ -27,10 +27,9 @@ export default function HeroBanner() {
 
       // Check if we have a name property (common in Strapi v4)
       if (imageData.name) {
-        // Try to construct a URL to the Strapi media library
-        // This is the format used by Strapi Cloud
-        const mediaUrl = `https://attractive-heart-9d123fcb13-media.strapiapp.com/uploads/${imageData.name}`
-        console.log("✅ Constructed media URL:", mediaUrl)
+        // Try HTTP first due to SSL issues with Strapi Cloud media server
+        const mediaUrl = `http://attractive-heart-9d123fcb13-media.strapiapp.com/uploads/${imageData.name}`
+        console.log("✅ Constructed media URL (HTTP):", mediaUrl)
         return mediaUrl
       }
 
