@@ -8,71 +8,41 @@ export default function HeroBanner() {
   const [banners, setBanners] = useState([])
   const [currentSlide, setCurrentSlide] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-  // Fallback banner data
-  const fallbackBanners = [
-    {
-      id: "fallback-1",
-      image:
-        "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=80",
-      title: "MAN",
-      subtitle: "EID COLLECTION",
-      primaryButtonText: "UNSTITCHED",
-      secondaryButtonText: "STITCHED",
-      primaryButtonLink: "/products?category=men&type=unstitched",
-      secondaryButtonLink: "/products?category=men&type=stitched",
-    },
-  ]
-
-  // Updated function with proxy and fallback support
+  // Function to properly extract Strapi image URLs
   const getStrapiImageUrl = (imageData) => {
-    if (!imageData) return null
+    if (!imageData) {
+      console.log("❌ No image data provided")
+      return null
+    }
 
     console.log("🔍 Processing image data:", imageData)
 
-    try {
-      // Check if we have a direct URL
-      if (typeof imageData === "string" && imageData.includes("http")) {
-        console.log("✅ Using direct URL:", imageData)
-        return imageData
-      }
-
-      // Check if we have a name property
-      if (imageData.name) {
-        // Try multiple URL patterns with proxy fallback
-        const directUrl = `${API_URL}/uploads/${imageData.name}`
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(directUrl)}`
-
-        console.log("✅ Constructed proxy URL:", proxyUrl)
-        return proxyUrl
-      }
-
-      // Other patterns
-      if (imageData.url) {
-        const url = imageData.url
-        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
-        console.log("✅ Using proxy URL from image data:", proxyUrl)
-        return proxyUrl
-      }
-
-      if (imageData.data?.attributes?.url) {
-        const url = imageData.data.attributes.url
-        const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(fullUrl)}`
-        console.log("✅ Using proxy URL from data.attributes:", proxyUrl)
-        return proxyUrl
-      }
-
-      console.log("❌ Could not extract image URL from:", imageData)
-      return null
-    } catch (error) {
-      console.error("❌ Error processing image URL:", error)
-      return null
+    // Check if image data has a direct URL property
+    if (imageData.url) {
+      console.log("✅ Found direct URL:", imageData.url)
+      return imageData.url
     }
+
+    // Check if we have the full Strapi media URL pattern
+    if (imageData.name && imageData.documentId) {
+      // Try the Strapi Cloud media URL pattern
+      const mediaUrl = `https://attractive-heart-9d123fcb13.media.strapiapp.com/${imageData.name}`
+      console.log("✅ Constructed media URL:", mediaUrl)
+      return mediaUrl
+    }
+
+    // Fallback: construct URL with name only
+    if (imageData.name) {
+      const fallbackUrl = `${API_URL}/uploads/${imageData.name}`
+      console.log("✅ Constructed fallback URL:", fallbackUrl)
+      return fallbackUrl
+    }
+
+    console.log("❌ Could not extract image URL from:", imageData)
+    return null
   }
 
   useEffect(() => {
@@ -82,10 +52,7 @@ export default function HeroBanner() {
 
         const res = await fetch(`${API_URL}/api/banners?populate=image`)
 
-        console.log("📡 Banner API Response status:", res.status)
-
         if (!res.ok) {
-          console.error("❌ Banner API failed with status:", res.status)
           throw new Error(`HTTP ${res.status}`)
         }
 
@@ -94,10 +61,7 @@ export default function HeroBanner() {
 
         if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
           const formattedBanners = responseData.data
-            .filter((item) => {
-              const isActive = item.isActive !== false
-              return isActive
-            })
+            .filter((item) => item.isActive !== false)
             .map((item) => {
               console.log("🔍 Processing banner item:", item)
 
@@ -115,17 +79,17 @@ export default function HeroBanner() {
                 secondaryButtonLink: item.secondaryButtonLink || "/products?category=men&type=stitched",
               }
             })
+            .filter((banner) => banner.image) // Only keep banners with valid images
 
           console.log("🎯 Final formatted banners:", formattedBanners)
-          setBanners(formattedBanners.length > 0 ? formattedBanners : fallbackBanners)
+          setBanners(formattedBanners)
         } else {
-          console.log("⚠️ No banner data found, using fallback")
-          setBanners(fallbackBanners)
+          console.log("⚠️ No banner data found")
+          setBanners([])
         }
       } catch (error) {
-        console.error("💥 Error fetching banners, using fallback:", error)
-        setBanners(fallbackBanners)
-        setError(true)
+        console.error("💥 Error fetching banners:", error)
+        setBanners([])
       } finally {
         setLoading(false)
       }
@@ -148,7 +112,17 @@ export default function HeroBanner() {
     return (
       <div className="relative h-[70vh] bg-gray-100 animate-pulse">
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-400">Loading banner...</div>
+          <div className="text-gray-400">Loading banners...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!banners.length) {
+    return (
+      <div className="relative h-[70vh] bg-gray-100">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-gray-500">No banners available</div>
         </div>
       </div>
     )
@@ -162,16 +136,15 @@ export default function HeroBanner() {
       <div className="relative w-full h-full">
         <Image
           src={currentBanner.image || "/placeholder.svg"}
-          alt="Sapphire Banner"
+          alt={currentBanner.title || "Banner"}
           fill
           className="object-cover"
           priority
           quality={90}
           onError={(e) => {
             console.error("❌ Banner image failed to load:", currentBanner.image)
-            // Fallback to high-quality stock image
-            e.currentTarget.src =
-              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=800&fit=crop&crop=center&auto=format&q=80"
+            // Only use placeholder as last resort
+            e.currentTarget.src = "/placeholder.svg?height=800&width=1600"
           }}
         />
         <div className="absolute inset-0 bg-black/20"></div>
@@ -219,12 +192,6 @@ export default function HeroBanner() {
               />
             ))}
           </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="absolute bottom-4 right-4 bg-yellow-50 border border-yellow-200 p-2 rounded text-xs text-yellow-800">
-          Using fallback images
         </div>
       )}
     </section>
