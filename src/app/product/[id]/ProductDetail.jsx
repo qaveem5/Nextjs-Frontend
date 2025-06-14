@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, memo } from "react"
+import { useState, useEffect, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Heart, Minus, Plus, ChevronRight } from "lucide-react"
 
+// Using your exact working components
 const ProductImage = memo(({ src, alt, priority = false }) => (
   <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden rounded-lg">
     <Image
@@ -80,13 +81,123 @@ const RelatedProduct = memo(({ product }) => (
 
 RelatedProduct.displayName = "RelatedProduct"
 
-export default function ProductDetail({ product, relatedProducts }) {
+export default function ProductDetail({ productData, allProductsData, productId }) {
+  const [product, setProduct] = useState(null)
+  const [relatedProducts, setRelatedProducts] = useState([])
   const [selectedSize, setSelectedSize] = useState("")
   const [quantity, setQuantity] = useState(1)
-  const [selectedColor, setSelectedColor] = useState(product.colors[0] || "")
+  const [selectedColor, setSelectedColor] = useState("")
+  const [productImages, setProductImages] = useState([])
+
+  useEffect(() => {
+    // Using your exact working data processing logic
+    const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+    const data = productData.attributes || productData
+
+    const getStrapiImageUrl = (imageData) => {
+      if (!imageData) return null
+
+      if (imageData.data?.attributes?.url) {
+        const url = imageData.data.attributes.url
+        return url.startsWith("http") ? url : `${API_URL}${url}`
+      }
+      if (imageData.attributes?.url) {
+        const url = imageData.attributes.url
+        return url.startsWith("http") ? url : `${API_URL}${url}`
+      }
+      if (imageData.url) {
+        const url = imageData.url
+        return url.startsWith("http") ? url : `${API_URL}${url}`
+      }
+      return null
+    }
+
+    const allImages = []
+
+    // Add main image first
+    const mainImage = getStrapiImageUrl(data.image)
+    if (mainImage) {
+      allImages.push(mainImage)
+    }
+
+    // Add gallery images
+    if (data.gallery) {
+      if (Array.isArray(data.gallery)) {
+        data.gallery.forEach((img) => {
+          const imageUrl = getStrapiImageUrl(img)
+          if (imageUrl) {
+            allImages.push(imageUrl)
+          }
+        })
+      } else if (data.gallery.data && Array.isArray(data.gallery.data)) {
+        data.gallery.data.forEach((img) => {
+          let imageUrl = null
+          if (img.attributes?.url) {
+            const url = img.attributes.url
+            imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+          } else if (img.url) {
+            const url = img.url
+            imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
+          }
+          if (imageUrl) {
+            allImages.push(imageUrl)
+          }
+        })
+      }
+    }
+
+    setProductImages(allImages)
+
+    const formattedProduct = {
+      id: productData.id,
+      name: data.name,
+      slug: data.slug,
+      price: data.price,
+      description: data.description,
+      colors: Array.isArray(data.colors) ? data.colors : data.colors ? [data.colors] : ["Black"],
+      sizes: Array.isArray(data.sizes) ? data.sizes : data.sizes ? [data.sizes] : ["XS", "S", "M", "L"],
+      sku: data.sku || `00002561DAD7_SLM`,
+      features: data.features || [],
+    }
+
+    setProduct(formattedProduct)
+
+    if (formattedProduct.colors.length > 0) {
+      setSelectedColor(formattedProduct.colors[0])
+    }
+
+    // Get related products
+    const filtered = allProductsData.data
+      .filter((item) => item.id !== Number.parseInt(productId))
+      .slice(0, 3)
+      .map((item) => {
+        const relatedData = item.attributes || item
+        const relatedImageUrl = getStrapiImageUrl(relatedData.image)
+        return {
+          id: item.id,
+          name: relatedData.name,
+          slug: relatedData.slug,
+          price: relatedData.price,
+          image: relatedImageUrl,
+        }
+      })
+
+    setRelatedProducts(filtered)
+  }, [productData, allProductsData, productId])
 
   const incrementQuantity = () => setQuantity((prev) => prev + 1)
   const decrementQuantity = () => setQuantity((prev) => Math.max(1, prev - 1))
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading product...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -129,7 +240,7 @@ export default function ProductDetail({ product, relatedProducts }) {
           {/* Product Images */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {product.images.slice(0, 2).map((image, index) => (
+              {productImages.slice(0, 2).map((image, index) => (
                 <ProductImage
                   key={index}
                   src={image}
@@ -139,9 +250,9 @@ export default function ProductDetail({ product, relatedProducts }) {
               ))}
             </div>
 
-            {product.images.length > 2 && (
+            {productImages.length > 2 && (
               <div className="grid grid-cols-2 gap-4">
-                {product.images.slice(2, 4).map((image, index) => (
+                {productImages.slice(2, 4).map((image, index) => (
                   <ProductImage key={index + 2} src={image} alt={`${product.name} view ${index + 3}`} />
                 ))}
               </div>

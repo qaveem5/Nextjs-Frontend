@@ -1,87 +1,31 @@
+import { cache } from "react"
 import { Suspense } from "react"
 import Header from "../../components/Header"
 import Footer from "../../components/Footer"
-import ProductsList from "./ProductsList"
+import ProductsContent from "./ProductsContent"
 
-export default function ProductsPage({ searchParams }) {
-  return (
-    <div className="min-h-screen bg-white">
-      <Header />
+export const revalidate = 1800 // Revalidate every 30 minutes
 
-      {/* Page Header */}
-      <div className="bg-gray-50 py-12">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {getPageTitle(searchParams.category, searchParams.type)}
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Discover our exquisite collection of premium Pakistani fashion
-          </p>
+// Cached function to get products
+const getProducts = cache(async () => {
+  const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
 
-          {/* Filter Buttons */}
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <FilterButton href="/products" isActive={!searchParams.category && !searchParams.type}>
-              All Products
-            </FilterButton>
+  try {
+    const res = await fetch(`${API_URL}/api/products?populate=*`, {
+      next: { revalidate: 1800 },
+    })
 
-            <FilterButton
-              href="/products?category=men"
-              isActive={searchParams.category === "men" && !searchParams.type}
-            >
-              Men
-            </FilterButton>
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`)
+    }
 
-            <FilterButton href="/products?category=women" isActive={searchParams.category === "women"}>
-              Women
-            </FilterButton>
-
-            <FilterButton href="/products?category=accessories" isActive={searchParams.category === "accessories"}>
-              Accessories
-            </FilterButton>
-
-            {searchParams.category === "men" && (
-              <>
-                <FilterButton
-                  href="/products?category=men&type=stitched"
-                  isActive={searchParams.category === "men" && searchParams.type === "stitched"}
-                >
-                  Stitched
-                </FilterButton>
-
-                <FilterButton
-                  href="/products?category=men&type=unstitched"
-                  isActive={searchParams.category === "men" && searchParams.type === "unstitched"}
-                >
-                  Unstitched
-                </FilterButton>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Product Listing */}
-      <Suspense fallback={<ProductsLoading />}>
-        <ProductsList category={searchParams.category} type={searchParams.type} />
-      </Suspense>
-
-      <Footer />
-    </div>
-  )
-}
-
-function FilterButton({ href, isActive, children }) {
-  return (
-    <a
-      href={href}
-      className={`px-6 py-2 rounded-full transition-colors ${
-        isActive ? "bg-black text-white" : "bg-white text-black border border-gray-300 hover:border-black"
-      }`}
-    >
-      {children}
-    </a>
-  )
-}
+    const responseData = await res.json()
+    return responseData.data || []
+  } catch (error) {
+    console.error("Error fetching products:", error)
+    return []
+  }
+})
 
 function ProductsLoading() {
   return (
@@ -102,14 +46,35 @@ function ProductsLoading() {
   )
 }
 
-function getPageTitle(category, type) {
+export default async function ProductsPage({ searchParams }) {
+  const productsData = await getProducts()
+  const category = searchParams?.category
+  const type = searchParams?.type
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+      <Suspense fallback={<ProductsLoading />}>
+        <ProductsContent productsData={productsData} category={category} type={type} />
+      </Suspense>
+      <Footer />
+    </div>
+  )
+}
+
+export function generateMetadata({ searchParams }) {
+  const category = searchParams?.category
+  const type = searchParams?.type
+
+  let title = "All Products - Sapphire"
   if (category && type) {
-    return `${category.charAt(0).toUpperCase() + category.slice(1)} ${
-      type.charAt(0).toUpperCase() + type.slice(1)
-    } Collection`
+    title = `${category.charAt(0).toUpperCase() + category.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} - Sapphire`
+  } else if (category) {
+    title = `${category.charAt(0).toUpperCase() + category.slice(1)}'s Collection - Sapphire`
   }
-  if (category) {
-    return `${category.charAt(0).toUpperCase() + category.slice(1)}'s Collection`
+
+  return {
+    title,
+    description: "Discover our exquisite collection of premium Pakistani fashion",
   }
-  return "All Products"
 }

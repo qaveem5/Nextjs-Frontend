@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
-export default function HeroBannerCarousel({ banners }) {
+export default function HeroBannerClient({ banners }) {
   const [currentSlide, setCurrentSlide] = useState(0)
 
   // Auto-slide functionality
@@ -21,6 +21,7 @@ export default function HeroBannerCarousel({ banners }) {
 
   return (
     <section className="relative h-[70vh] overflow-hidden">
+      {/* Banner Image */}
       <div className="relative w-full h-full">
         <Image
           src={currentBanner.image || "/placeholder.svg"}
@@ -37,6 +38,7 @@ export default function HeroBannerCarousel({ banners }) {
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
 
+      {/* Content Overlay */}
       <div className="absolute inset-0 flex items-center">
         <div className="container mx-auto px-4">
           <div className="max-w-lg">
@@ -63,6 +65,7 @@ export default function HeroBannerCarousel({ banners }) {
         </div>
       </div>
 
+      {/* Pagination Dots */}
       {banners.length > 1 && (
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
           <div className="flex space-x-2">

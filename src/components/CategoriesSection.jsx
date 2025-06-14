@@ -1,29 +1,62 @@
 import Link from "next/link"
 import Image from "next/image"
 
-const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
-
-// Function to properly extract Strapi image URLs
+// Function to properly extract Strapi image URLs (keeping your exact logic)
 function getStrapiImageUrl(imageData) {
-  if (!imageData) return null
+  if (!imageData) {
+    console.log("❌ No image data provided")
+    return null
+  }
+
+  console.log("🔍 Processing image data:", imageData)
 
   // Check if image data has a direct URL property
   if (imageData.url) {
+    console.log("✅ Found direct URL:", imageData.url)
     return imageData.url
   }
 
   // Check if we have the full Strapi media URL pattern
   if (imageData.name && imageData.documentId) {
     // Try the Strapi Cloud media URL pattern
-    return `https://attractive-heart-9d123fcb13.media.strapiapp.com/${imageData.name}`
+    const mediaUrl = `https://attractive-heart-9d123fcb13.media.strapiapp.com/${imageData.name}`
+    console.log("✅ Constructed media URL:", mediaUrl)
+    return mediaUrl
   }
 
   // Fallback: construct URL with name only
   if (imageData.name) {
-    return `${API_URL}/uploads/${imageData.name}`
+    const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+    const fallbackUrl = `${API_URL}/uploads/${imageData.name}`
+    console.log("✅ Constructed fallback URL:", fallbackUrl)
+    return fallbackUrl
   }
 
+  console.log("❌ Could not extract image URL from:", imageData)
   return null
+}
+
+// Process categories data (keeping your exact logic)
+function processCategories(categoriesData) {
+  if (!categoriesData || !Array.isArray(categoriesData)) return []
+
+  return categoriesData
+    .filter((item) => item.isActive !== false)
+    .map((item) => {
+      console.log("🔍 Processing category item:", item)
+
+      const categoryImage = getStrapiImageUrl(item.image)
+      console.log("🎯 Final category image URL:", categoryImage)
+
+      return {
+        id: item.id,
+        name: item.name || "Category",
+        slug: item.slug || "",
+        description: item.description || "Discover our collection",
+        image: categoryImage,
+      }
+    })
+    .filter((category) => category.image) // Only keep categories with valid images
 }
 
 const CategoryCard = ({ category }) => (
@@ -37,6 +70,10 @@ const CategoryCard = ({ category }) => (
           className="object-cover group-hover:scale-105 transition-transform duration-500"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           quality={85}
+          onError={(e) => {
+            console.error("❌ Category image failed to load:", category.image)
+            e.currentTarget.src = "/placeholder.svg?height=600&width=800"
+          }}
         />
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
 
@@ -60,37 +97,8 @@ const CategoryCard = ({ category }) => (
   </Link>
 )
 
-export default async function CategoriesSection() {
-  let categories = []
-
-  try {
-    const res = await fetch(`${API_URL}/api/categories?populate=image`, {
-      next: { revalidate: 3600 }, // Revalidate every hour
-    })
-
-    if (res.ok) {
-      const responseData = await res.json()
-
-      if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-        categories = responseData.data
-          .filter((item) => item.isActive !== false)
-          .map((item) => {
-            const categoryImage = getStrapiImageUrl(item.image)
-
-            return {
-              id: item.id,
-              name: item.name || "Category",
-              slug: item.slug || "",
-              description: item.description || "Discover our collection",
-              image: categoryImage,
-            }
-          })
-          .filter((category) => category.image) // Only keep categories with valid images
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching categories:", error)
-  }
+export default function CategoriesSection({ categories: categoriesData }) {
+  const categories = processCategories(categoriesData)
 
   if (!categories.length) {
     return (

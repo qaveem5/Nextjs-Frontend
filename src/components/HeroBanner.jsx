@@ -1,68 +1,71 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Suspense } from "react"
-import HeroBannerCarousel from "./HeroBannerCarousel"
+import HeroBannerClient from "./HeroBannerClient"
 
-const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
-
-// Function to properly extract Strapi image URLs
+// Function to properly extract Strapi image URLs (keeping your exact logic)
 function getStrapiImageUrl(imageData) {
-  if (!imageData) return null
+  if (!imageData) {
+    console.log("❌ No image data provided")
+    return null
+  }
+
+  console.log("🔍 Processing image data:", imageData)
 
   // Check if image data has a direct URL property
   if (imageData.url) {
+    console.log("✅ Found direct URL:", imageData.url)
     return imageData.url
   }
 
   // Check if we have the full Strapi media URL pattern
   if (imageData.name && imageData.documentId) {
     // Try the Strapi Cloud media URL pattern
-    return `https://attractive-heart-9d123fcb13.media.strapiapp.com/${imageData.name}`
+    const mediaUrl = `https://attractive-heart-9d123fcb13.media.strapiapp.com/${imageData.name}`
+    console.log("✅ Constructed media URL:", mediaUrl)
+    return mediaUrl
   }
 
   // Fallback: construct URL with name only
   if (imageData.name) {
-    return `${API_URL}/uploads/${imageData.name}`
+    const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+    const fallbackUrl = `${API_URL}/uploads/${imageData.name}`
+    console.log("✅ Constructed fallback URL:", fallbackUrl)
+    return fallbackUrl
   }
 
+  console.log("❌ Could not extract image URL from:", imageData)
   return null
 }
 
-// Server component that fetches banner data
-export default async function HeroBanner() {
-  let banners = []
+// Process banners data (keeping your exact logic)
+function processBanners(bannersData) {
+  if (!bannersData || !Array.isArray(bannersData)) return []
 
-  try {
-    const res = await fetch(`${API_URL}/api/banners?populate=image`, {
-      next: { revalidate: 3600 }, // Revalidate every hour
-    })
+  return bannersData
+    .filter((item) => item.isActive !== false)
+    .map((item) => {
+      console.log("🔍 Processing banner item:", item)
 
-    if (res.ok) {
-      const responseData = await res.json()
+      const bannerImage = getStrapiImageUrl(item.image)
+      console.log("🎯 Final banner image URL:", bannerImage)
 
-      if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-        banners = responseData.data
-          .filter((item) => item.isActive !== false)
-          .map((item) => {
-            const bannerImage = getStrapiImageUrl(item.image)
-
-            return {
-              id: item.id,
-              image: bannerImage,
-              title: item.title || "MAN",
-              subtitle: item.subtitle || "EID COLLECTION",
-              primaryButtonText: item.primaryButtonText || "UNSTITCHED",
-              secondaryButtonText: item.secondaryButtonText || "STITCHED",
-              primaryButtonLink: item.primaryButtonLink || "/products?category=men&type=unstitched",
-              secondaryButtonLink: item.secondaryButtonLink || "/products?category=men&type=stitched",
-            }
-          })
-          .filter((banner) => banner.image) // Only keep banners with valid images
+      return {
+        id: item.id,
+        image: bannerImage,
+        title: item.title || "MAN",
+        subtitle: item.subtitle || "EID COLLECTION",
+        primaryButtonText: item.primaryButtonText || "UNSTITCHED",
+        secondaryButtonText: item.secondaryButtonText || "STITCHED",
+        primaryButtonLink: item.primaryButtonLink || "/products?category=men&type=unstitched",
+        secondaryButtonLink: item.secondaryButtonLink || "/products?category=men&type=stitched",
       }
-    }
-  } catch (error) {
-    console.error("Error fetching banners:", error)
-  }
+    })
+    .filter((banner) => banner.image) // Only keep banners with valid images
+}
+
+export default function HeroBanner({ banners: bannersData }) {
+  const banners = processBanners(bannersData)
 
   if (!banners.length) {
     return (
@@ -87,6 +90,10 @@ export default async function HeroBanner() {
             className="object-cover"
             priority
             quality={90}
+            onError={(e) => {
+              console.error("❌ Banner image failed to load:", banner.image)
+              e.currentTarget.src = "/placeholder.svg?height=800&width=1600"
+            }}
           />
           <div className="absolute inset-0 bg-black/20"></div>
         </div>
@@ -131,7 +138,7 @@ export default async function HeroBanner() {
         </div>
       }
     >
-      <HeroBannerCarousel banners={banners} />
+      <HeroBannerClient banners={banners} />
     </Suspense>
   )
 }
