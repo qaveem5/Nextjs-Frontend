@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect, memo } from "react"
+import { useState, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Heart, Minus, Plus, ChevronRight } from "lucide-react"
 
-// Using your exact working components
 const ProductImage = memo(({ src, alt, priority = false }) => (
   <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden rounded-lg">
     <Image
@@ -20,8 +19,6 @@ const ProductImage = memo(({ src, alt, priority = false }) => (
   </div>
 ))
 
-ProductImage.displayName = "ProductImage"
-
 const SizeButton = memo(({ size, isSelected, onClick }) => (
   <button
     onClick={onClick}
@@ -33,8 +30,6 @@ const SizeButton = memo(({ size, isSelected, onClick }) => (
     {size}
   </button>
 ))
-
-SizeButton.displayName = "SizeButton"
 
 const QuantitySelector = memo(({ quantity, onIncrement, onDecrement }) => (
   <div className="flex items-center border-2 border-gray-900 rounded-full bg-white shadow-sm">
@@ -56,14 +51,12 @@ const QuantitySelector = memo(({ quantity, onIncrement, onDecrement }) => (
   </div>
 ))
 
-QuantitySelector.displayName = "QuantitySelector"
-
 const RelatedProduct = memo(({ product }) => (
   <Link href={`/product/${product.id}`} className="group block">
     <div className="space-y-3">
       <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 rounded-lg">
         <Image
-          src={product.image || "/placeholder.svg"}
+          src={product.image?.url || "/placeholder.svg"}
           alt={product.name}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -79,124 +72,25 @@ const RelatedProduct = memo(({ product }) => (
   </Link>
 ))
 
-RelatedProduct.displayName = "RelatedProduct"
-
-export default function ProductDetail({ productData, allProductsData, productId }) {
-  const [product, setProduct] = useState(null)
-  const [relatedProducts, setRelatedProducts] = useState([])
+export default function ProductDetailClient({ product, relatedProducts }) {
   const [selectedSize, setSelectedSize] = useState("")
   const [quantity, setQuantity] = useState(1)
-  const [selectedColor, setSelectedColor] = useState("")
-  const [productImages, setProductImages] = useState([])
-
-  useEffect(() => {
-    // Using your exact working data processing logic
-    const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
-    const data = productData.attributes || productData
-
-    const getStrapiImageUrl = (imageData) => {
-      if (!imageData) return null
-
-      if (imageData.data?.attributes?.url) {
-        const url = imageData.data.attributes.url
-        return url.startsWith("http") ? url : `${API_URL}${url}`
-      }
-      if (imageData.attributes?.url) {
-        const url = imageData.attributes.url
-        return url.startsWith("http") ? url : `${API_URL}${url}`
-      }
-      if (imageData.url) {
-        const url = imageData.url
-        return url.startsWith("http") ? url : `${API_URL}${url}`
-      }
-      return null
-    }
-
-    const allImages = []
-
-    // Add main image first
-    const mainImage = getStrapiImageUrl(data.image)
-    if (mainImage) {
-      allImages.push(mainImage)
-    }
-
-    // Add gallery images
-    if (data.gallery) {
-      if (Array.isArray(data.gallery)) {
-        data.gallery.forEach((img) => {
-          const imageUrl = getStrapiImageUrl(img)
-          if (imageUrl) {
-            allImages.push(imageUrl)
-          }
-        })
-      } else if (data.gallery.data && Array.isArray(data.gallery.data)) {
-        data.gallery.data.forEach((img) => {
-          let imageUrl = null
-          if (img.attributes?.url) {
-            const url = img.attributes.url
-            imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-          } else if (img.url) {
-            const url = img.url
-            imageUrl = url.startsWith("http") ? url : `${API_URL}${url}`
-          }
-          if (imageUrl) {
-            allImages.push(imageUrl)
-          }
-        })
-      }
-    }
-
-    setProductImages(allImages)
-
-    const formattedProduct = {
-      id: productData.id,
-      name: data.name,
-      slug: data.slug,
-      price: data.price,
-      description: data.description,
-      colors: Array.isArray(data.colors) ? data.colors : data.colors ? [data.colors] : ["Black"],
-      sizes: Array.isArray(data.sizes) ? data.sizes : data.sizes ? [data.sizes] : ["XS", "S", "M", "L"],
-      sku: data.sku || `00002561DAD7_SLM`,
-      features: data.features || [],
-    }
-
-    setProduct(formattedProduct)
-
-    if (formattedProduct.colors.length > 0) {
-      setSelectedColor(formattedProduct.colors[0])
-    }
-
-    // Get related products
-    const filtered = allProductsData.data
-      .filter((item) => item.id !== Number.parseInt(productId))
-      .slice(0, 3)
-      .map((item) => {
-        const relatedData = item.attributes || item
-        const relatedImageUrl = getStrapiImageUrl(relatedData.image)
-        return {
-          id: item.id,
-          name: relatedData.name,
-          slug: relatedData.slug,
-          price: relatedData.price,
-          image: relatedImageUrl,
-        }
-      })
-
-    setRelatedProducts(filtered)
-  }, [productData, allProductsData, productId])
+  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || "")
 
   const incrementQuantity = () => setQuantity((prev) => prev + 1)
   const decrementQuantity = () => setQuantity((prev) => Math.max(1, prev - 1))
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading product...</p>
-        </div>
-      </div>
-    )
+  // Prepare product images
+  const productImages = []
+  if (product.image?.url) {
+    productImages.push(product.image.url)
+  }
+  if (product.gallery) {
+    product.gallery.forEach((img) => {
+      if (img.url) {
+        productImages.push(img.url)
+      }
+    })
   }
 
   return (
@@ -216,14 +110,6 @@ export default function ProductDetail({ productData, allProductsData, productId 
             <li>
               <Link href="/products?category=men" className="hover:text-gray-900 transition-colors">
                 Man
-              </Link>
-            </li>
-            <li>
-              <ChevronRight className="w-4 h-4" />
-            </li>
-            <li>
-              <Link href="/products?category=men&type=stitched" className="hover:text-gray-900 transition-colors">
-                Men's Stitched
               </Link>
             </li>
             <li>
@@ -267,7 +153,7 @@ export default function ProductDetail({ productData, allProductsData, productId 
                 <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-wide mb-3">{product.name}</h1>
                 <div className="text-3xl font-bold text-gray-900 mb-2">{product.price}</div>
                 <div className="text-sm text-gray-600">
-                  <strong>SKU:</strong> {product.sku}
+                  <strong>SKU:</strong> {product.sku || "N/A"}
                 </div>
               </div>
               <button
@@ -278,37 +164,29 @@ export default function ProductDetail({ productData, allProductsData, productId 
               </button>
             </div>
 
-            {/* Type Selection */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-4 uppercase tracking-wide text-sm">TYPE: SLIM FIT</h3>
-              <div className="flex gap-3">
-                <button className="border-2 border-gray-900 bg-white text-gray-900 px-6 py-3 text-sm font-semibold hover:bg-gray-900 hover:text-white transition-colors">
-                  Slim Fit
-                </button>
-              </div>
-            </div>
-
             {/* Size Selection */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 uppercase tracking-wide text-sm">
-                  SIZE: {selectedSize || "SELECT YOUR SIZE"}
-                </h3>
-                <button className="text-sm text-gray-600 hover:text-gray-900 underline flex items-center gap-1">
-                  📏 Size Chart
-                </button>
+            {product.sizes && product.sizes.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 uppercase tracking-wide text-sm">
+                    SIZE: {selectedSize || "SELECT YOUR SIZE"}
+                  </h3>
+                  <button className="text-sm text-gray-600 hover:text-gray-900 underline flex items-center gap-1">
+                    📏 Size Chart
+                  </button>
+                </div>
+                <div className="flex gap-3 flex-wrap">
+                  {product.sizes.map((size) => (
+                    <SizeButton
+                      key={size}
+                      size={size}
+                      isSelected={selectedSize === size}
+                      onClick={() => setSelectedSize(size)}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-3 flex-wrap">
-                {product.sizes.map((size) => (
-                  <SizeButton
-                    key={size}
-                    size={size}
-                    isSelected={selectedSize === size}
-                    onClick={() => setSelectedSize(size)}
-                  />
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
@@ -331,22 +209,16 @@ export default function ProductDetail({ productData, allProductsData, productId 
                   <p>{product.description}</p>
 
                   <div className="space-y-3">
-                    <p>
-                      <strong>Details:</strong> Band Around the Placket Front Panel, Dyed Embroidered Back Panel, Band
-                      Neckline, Open Sleeves, Standard Length
-                    </p>
-                    <p>
-                      <strong>Colour:</strong> {selectedColor}
-                    </p>
-                    <p>
-                      <strong>Fabric:</strong> Schiffli Cotton
-                    </p>
-                  </div>
-
-                  <div className="border-t pt-4 mt-6">
-                    <p className="font-semibold mb-2">Size & Fit</p>
-                    <p>Model Height: 6 Feet 1 Inches</p>
-                    <p>Model Wears Size: Medium-Slim Fit</p>
+                    {selectedColor && (
+                      <p>
+                        <strong>Colour:</strong> {selectedColor}
+                      </p>
+                    )}
+                    {product.fabric && (
+                      <p>
+                        <strong>Fabric:</strong> {product.fabric}
+                      </p>
+                    )}
                   </div>
                 </div>
               </details>

@@ -1,65 +1,54 @@
+import { getPayload } from "payload"
+import configPromise from "@payload-config"
 import { cache } from "react"
 import Header from "../components/Header"
 import HeroBanner from "../components/HeroBanner"
 import CategoriesSection from "../components/CategoriesSection"
 import Footer from "../components/Footer"
 
-export const revalidate = 3600 // Revalidate every hour
-
-// Cached function to get home page data
+// Server-side data fetching with caching
 const getHomePageData = cache(async () => {
-  const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || "http://localhost:1337"
+  const payload = await getPayload({ config: configPromise })
 
-  try {
-    // Fetch both banners and categories in parallel for better performance
-    const [bannersRes, categoriesRes] = await Promise.all([
-      fetch(`${API_URL}/api/banners?populate=image`, {
-        next: { revalidate: 3600 },
-      }),
-      fetch(`${API_URL}/api/categories?populate=image`, {
-        next: { revalidate: 3600 },
-      }),
-    ])
+  // Fetch banners and categories in parallel
+  const [banners, categories] = await Promise.all([
+    payload.find({
+      collection: "banners",
+      where: {
+        isActive: { equals: true },
+      },
+      limit: 10,
+      sort: "order",
+    }),
+    payload.find({
+      collection: "categories",
+      where: {
+        isActive: { equals: true },
+      },
+      limit: 20,
+      sort: "name",
+    }),
+  ])
 
-    const [bannersData, categoriesData] = await Promise.all([
-      bannersRes.ok ? bannersRes.json() : { data: [] },
-      categoriesRes.ok ? categoriesRes.json() : { data: [] },
-    ])
-
-    return {
-      banners: bannersData.data || [],
-      categories: categoriesData.data || [],
-      success: true,
-    }
-  } catch (error) {
-    console.error("Error fetching home page data:", error)
-    return {
-      banners: [],
-      categories: [],
-      success: false,
-    }
+  return {
+    banners: banners.docs,
+    categories: categories.docs,
   }
 })
 
 export default async function HomePage() {
-  const homeData = await getHomePageData()
+  const { banners, categories } = await getHomePageData()
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
       <main>
-        <HeroBanner banners={homeData.banners} />
-        <CategoriesSection categories={homeData.categories} />
+        <HeroBanner banners={banners} />
+        <CategoriesSection categories={categories} />
       </main>
       <Footer />
     </div>
   )
 }
 
-export function generateMetadata() {
-  return {
-    title: "Sapphire - Premium Pakistani Fashion",
-    description: "Discover our exquisite collection of premium Pakistani fashion for men and women",
-    keywords: "Pakistani fashion, clothing, men, women, stitched, unstitched",
-  }
-}
+export const revalidate = 3600 // Revalidate every hour
